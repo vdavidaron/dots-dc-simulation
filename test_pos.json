@@ -1,0 +1,55 @@
+{
+  "name": "test1 simulation",
+  "start_date": "2023-01-25 00:00:00",
+  "simulation_duration_in_seconds" : "86400",
+  "keep_logs_hours": 1,
+  "log_level": "debug",
+  "calculation_services": [
+    {
+      "esdl_type": "ElectricityDemand",
+      "calc_service_name": "datacenter_demand_service",
+      "service_image_url": "ghcr.io/vdavidaron/datacenter-demand-service:v0.0.5",
+      "nr_of_models":0,
+      "amount_of_calculations": 1
+    },
+    {
+      "esdl_type": "Battery",
+      "calc_service_name": "bess_storage_service",
+      "service_image_url": "ghcr.io/vdavidaron/battery-service:v0.0.5",
+      "nr_of_models": 0,
+      "amount_of_calculations": 1
+    },
+    {
+      "esdl_type": "PowerPlant",
+      "calc_service_name": "grid_connection_service",
+      "service_image_url": "ghcr.io/vdavidaron/power-plant-service:v0.0.5",
+      "nr_of_models": 0,
+      "amount_of_calculations": 1
+    },
+    {
+      "esdl_type": "ElectricityNetwork",
+      "calc_service_name": "network_solver_service",
+      "service_image_url": "ghcr.io/vdavidaron/network-balancer-service:v0.0.5",
+      "nr_of_models": 0,
+      "amount_of_calculations": 1
+    },
+    {
+        "esdl_type": "PVInstallation",
+        "calc_service_name": "local-renewable-service",
+        "service_image_url": "ghcr.io/vdavidaron/local-renewable-service:v0.0.1",
+        "nr_of_models": 0,
+        "amount_of_calculations": 1
+    },
+    {
+        "esdl_type": "GasProducer",
+        "calc_service_name": "backup-generator-service",
+        "service_image_url": "ghcr.io/vdavidaron/backup-generator-service:v0.0.1",
+        "nr_of_models": 0,
+        "amount_of_calculations": 1
+    }
+
+  ],
+  "esdl_base64string": "PD94bWwgdmVyc2lvbj0nMS4wJyBlbmNvZGluZz0nVVRGLTgnPz4KPGVzZGw6RW5lcmd5U3lzdGVtIHhtbG5zOnhzaT0iaHR0cDovL3d3dy53My5vcmcvMjAwMS9YTUxTY2hlbWEtaW5zdGFuY2UiIHhtbG5zOmVzZGw9Imh0dHA6Ly93d3cudG5vLm5sL2VzZGwiIGRlc2NyaXB0aW9uPSJEYXRhY2VudGVyIHdpdGggQkVTUyBhbmQgZ3JpZCBjb25uZWN0aW9uIiBuYW1lPSJEYXRhY2VudGVyX0JFU1NfU2NlbmFyaW8iIGlkPSJiM2ZjMTM4NS02Y2Q4LTRlYTctYjUzMi1lZDkxODk3NmM2NDkiPgogIDxpbnN0YW5jZSB4c2k6dHlwZT0iZXNkbDpJbnN0YW5jZSIgbmFtZT0ic2NlbmFyaW9faW5zdGFuY2UiIGlkPSJiZjY0NjM1Mi0xZWIzLTRkZTYtOTFmOC1lMmUyOTQ1NTQzZjYiPgogICAgPGFyZWEgeHNpOnR5cGU9ImVzZGw6QXJlYSIgbmFtZT0iRGF0YWNlbnRlcl9TaXRlIiBpZD0iNzU5YWJjMWMtYjE2NS00YjM2LWE5NTEtZDE0NDI3MGNhMzU1Ij4KICAgICAgPGFzc2V0IHhzaTp0eXBlPSJlc2RsOkVsZWN0cmljaXR5TmV0d29yayIgbmFtZT0iU2l0ZSBMViBOZXR3b3JrIiBpZD0iMTk5YjNjYjUtMjIyOC00OGIzLTllZjktZjNlZDM2ODZkZmQwIj4KICAgICAgICA8cG9ydCB4c2k6dHlwZT0iZXNkbDpPdXRQb3J0IiBuYW1lPSJuZXRfdG9fZGF0YWNlbnRlciIgaWQ9ImQ0MDk1YThmLWY2YmUtNGU2ZS1hNWE0LWRmN2Y4ZWU1NzFlOCIgY29ubmVjdGVkVG89Ijk2NjA2ZGFhLWNkNGUtNGNjMi1hYmI0LWM1MzJlYmQ5Zjk5YiIvPgogICAgICAgIDxwb3J0IHhzaTp0eXBlPSJlc2RsOk91dFBvcnQiIG5hbWU9Im5ldF90b19iZXNzIiBpZD0iOTczNTg5ZmUtZWUyMS00OTUxLWI4MzAtNTdhODJkYmU0M2FiIiBjb25uZWN0ZWRUbz0iOWU5NTI5MWQtNjA3MC00Y2M3LWIxNGMtZWEyOTNkYjYyNDIyIi8+CiAgICAgICAgPHBvcnQgeHNpOnR5cGU9ImVzZGw6SW5Qb3J0IiBuYW1lPSJuZXRfZnJvbV9iZXNzIiBpZD0iMTBhMWNkMGEtZThkZC00NWVhLWE1M2MtNzc5NzEwMWRlZDMxIiBjb25uZWN0ZWRUbz0iMDRmMDI2MmMtYzdjYy00OWMzLThmMDYtM2UzYzY1ZjY4MGI2Ii8+CiAgICAgICAgPHBvcnQgeHNpOnR5cGU9ImVzZGw6T3V0UG9ydCIgbmFtZT0ibmV0X3RvX2dyaWQiIGlkPSJlZDg1ZGQ3My01MWI5LTQ2YWEtOWY4OS1jNDQyM2QwZDA0MzciIGNvbm5lY3RlZFRvPSIwZjAwYTNkYi03MmEwLTRlMTItOGQ3OC05YTNiNGVkMjE3ZGYiLz4KICAgICAgICA8cG9ydCB4c2k6dHlwZT0iZXNkbDpJblBvcnQiIG5hbWU9Im5ldF9mcm9tX2dyaWQiIGlkPSI4ZmQwYTIyNi1mZjk2LTRmMjYtYWE0Ni1kYmQyYzVlM2JkYmYiIGNvbm5lY3RlZFRvPSI5ZGRlZjIzNC1lMzBhLTQ2ZDEtYTYzNS01OWI4NmY5NzQxNTgiLz4KICAgICAgICA8cG9ydCB4c2k6dHlwZT0iZXNkbDpJblBvcnQiIG5hbWU9Im5ldF9mcm9tX2JhY2t1cF9nZW5lcmF0b3IiIGlkPSJjOTZhNjBkNS1iYzljLTRmM2YtOTE1Ny1iMWMyMmY0NDg0MWQiIGNvbm5lY3RlZFRvPSI3MzNmOWZjZS02YTI1LTQ3ZmMtYTM5Yy1hMDdlMzEyMjZmOTgiLz4KICAgICAgICA8cG9ydCB4c2k6dHlwZT0iZXNkbDpJblBvcnQiIG5hbWU9Im5ldF9mcm9tX2xvY2FsX3JlcyIgaWQ9IjlmM2RmY2NhLTgwYzgtNDc1Ni04MDEzLWM2ODlmZmNiNGU2ZSIgY29ubmVjdGVkVG89ImIwNzI5MGQxLTUzYTQtNGU0ZC1iNjUyLThhNzdiNTFkNDBiZCIvPgogICAgICA8L2Fzc2V0PgogICAgICA8YXNzZXQgeHNpOnR5cGU9ImVzZGw6RWxlY3RyaWNpdHlEZW1hbmQiIHBvd2VyPSI1MDAwLjAiIG5hbWU9IkRhdGFjZW50ZXIgTG9hZCIgaWQ9IjIyODg5Mjk2LTIyYTItNDY0ZC1iMTI3LWZiMTk2OWU5NmUyNSI+CiAgICAgICAgPHBvcnQgeHNpOnR5cGU9ImVzZGw6SW5Qb3J0IiBuYW1lPSJkY19pbiIgaWQ9Ijk2NjA2ZGFhLWNkNGUtNGNjMi1hYmI0LWM1MzJlYmQ5Zjk5YiIgY29ubmVjdGVkVG89ImQ0MDk1YThmLWY2YmUtNGU2ZS1hNWE0LWRmN2Y4ZWU1NzFlOCIvPgogICAgICA8L2Fzc2V0PgogICAgICA8YXNzZXQgeHNpOnR5cGU9ImVzZGw6QmF0dGVyeSIgY2FwYWNpdHk9IjI3MDAuMCIgbmFtZT0iRGF0YWNlbnRlciBCRVNTIiBkaXNjaGFyZ2VFZmZpY2llbmN5PSIwLjk1IiBjaGFyZ2VFZmZpY2llbmN5PSIwLjk1IiBpZD0iZTIzYTM5YTYtMzM3Ni00ZjRjLWE2ZTktMDJhOWE4ZWFjNzVkIj4KICAgICAgICA8cG9ydCB4c2k6dHlwZT0iZXNkbDpJblBvcnQiIG5hbWU9ImJlc3NfaW4iIGlkPSI5ZTk1MjkxZC02MDcwLTRjYzctYjE0Yy1lYTI5M2RiNjI0MjIiIGNvbm5lY3RlZFRvPSI5NzM1ODlmZS1lZTIxLTQ5NTEtYjgzMC01N2E4MmRiZTQzYWIiLz4KICAgICAgICA8cG9ydCB4c2k6dHlwZT0iZXNkbDpPdXRQb3J0IiBuYW1lPSJiZXNzX291dCIgaWQ9IjA0ZjAyNjJjLWM3Y2MtNDljMy04ZjA2LTNlM2M2NWY2ODBiNiIgY29ubmVjdGVkVG89IjEwYTFjZDBhLWU4ZGQtNDVlYS1hNTNjLTc3OTcxMDFkZWQzMSIvPgogICAgICA8L2Fzc2V0PgogICAgICA8YXNzZXQgeHNpOnR5cGU9ImVzZGw6UG93ZXJQbGFudCIgbmFtZT0iR3JpZCBDb25uZWN0aW9uIiBwb3dlcj0iMjAwMDAuMCIgaWQ9ImZiYjAyZjVhLTYwYmItNDM3Zi05NjQ0LTY0ZWJiY2ZlM2QyNyI+CiAgICAgICAgPHBvcnQgeHNpOnR5cGU9ImVzZGw6SW5Qb3J0IiBuYW1lPSJncmlkX2luIiBpZD0iMGYwMGEzZGItNzJhMC00ZTEyLThkNzgtOWEzYjRlZDIxN2RmIiBjb25uZWN0ZWRUbz0iZWQ4NWRkNzMtNTFiOS00NmFhLTlmODktYzQ0MjNkMGQwNDM3Ii8+CiAgICAgICAgPHBvcnQgeHNpOnR5cGU9ImVzZGw6T3V0UG9ydCIgbmFtZT0iZ3JpZF9vdXQiIGlkPSI5ZGRlZjIzNC1lMzBhLTQ2ZDEtYTYzNS01OWI4NmY5NzQxNTgiIGNvbm5lY3RlZFRvPSI4ZmQwYTIyNi1mZjk2LTRmMjYtYWE0Ni1kYmQyYzVlM2JkYmYiLz4KICAgICAgPC9hc3NldD4KICAgICAgPGFzc2V0IHhzaTp0eXBlPSJlc2RsOkdhc1Byb2R1Y2VyIiBwb3dlcj0iMjAwMDAuMCIgbmFtZT0iQmFja3VwIEdlbmVyYXRvciIgaWQ9ImM5OTU3MjJiLTk3YmUtNDEyYS1hNzJkLWU4MDliNWNkMjY4NyI+CiAgICAgICAgPHBvcnQgeHNpOnR5cGU9ImVzZGw6T3V0UG9ydCIgbmFtZT0iZ2VuX291dCIgaWQ9IjczM2Y5ZmNlLTZhMjUtNDdmYy1hMzljLWEwN2UzMTIyNmY5OCIgY29ubmVjdGVkVG89ImM5NmE2MGQ1LWJjOWMtNGYzZi05MTU3LWIxYzIyZjQ0ODQxZCIvPgogICAgICA8L2Fzc2V0PgogICAgICA8YXNzZXQgeHNpOnR5cGU9ImVzZGw6UFZJbnN0YWxsYXRpb24iIHBvd2VyPSIyMDAwMC4wIiBuYW1lPSJMb2NhbCBSRVMiIGlkPSI3YzM5MmRhMy0zYjlmLTQyNmYtODFmZS1lMGE2ZWYyODUzZTUiPgogICAgICAgIDxwb3J0IHhzaTp0eXBlPSJlc2RsOk91dFBvcnQiIG5hbWU9InJlc19vdXQiIGlkPSJiMDcyOTBkMS01M2E0LTRlNGQtYjY1Mi04YTc3YjUxZDQwYmQiIGNvbm5lY3RlZFRvPSI5ZjNkZmNjYS04MGM4LTQ3NTYtODAxMy1jNjg5ZmZjYjRlNmUiLz4KICAgICAgPC9hc3NldD4KICAgIDwvYXJlYT4KICA8L2luc3RhbmNlPgo8L2VzZGw6RW5lcmd5U3lzdGVtPgo="
+
+
+}
