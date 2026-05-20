@@ -1,6 +1,11 @@
 # dots-dc-simulation
 Starting simulation for dots dc calculation services
 
+needed:
+kubectl, kind
+
+run: https://github.com/dots-energy/dots-simulation-orchestrator.git
+
 The math behind transformer constraints. 
 Let $B_t$ be the background demand and $D_t$ be the datacenter load at hour $t$:
 

@@ -5,8 +5,50 @@ import math
 import re
 import sys
 import os
-from dotenv import load_dotenv
+import subprocess
 from esdl.esdl_handler import EnergySystemHandler
+
+
+def cleanup_old_simulations():
+    """Delete all old simulation and broker pods from the dots namespace."""
+    print("🧹 Cleaning up old simulation pods...")
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "dots",
+             "-l", "simulator_id=SO",
+             "--no-headers", "-o", "custom-columns=NAME:.metadata.name"],
+            capture_output=True, text=True, timeout=10
+        )
+        pods = [p.strip() for p in result.stdout.strip().split('\n') if p.strip()]
+        
+        # Also get old broker pods
+        result_brokers = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "dots",
+             "-l", "model_id",
+             "--no-headers", "-o", "custom-columns=NAME:.metadata.name,STATUS:.status.phase"],
+            capture_output=True, text=True, timeout=10
+        )
+        for line in result_brokers.stdout.strip().split('\n'):
+            parts = line.split()
+            if len(parts) >= 2 and parts[0].startswith("helics-broker-"):
+                pods.append(parts[0])
+
+        if not pods:
+            print("   No old pods found.")
+            return
+        
+        for pod in pods:
+            subprocess.run(
+                ["kubectl", "delete", "pod", "-n", "dots", pod,
+                 "--force", "--grace-period=0"],
+                capture_output=True, timeout=10
+            )
+        print(f"   ✅ Deleted {len(pods)} old pod(s).")
+    except Exception as e:
+        print(f"   ⚠️  Cleanup warning: {e} (continuing anyway)")
+
+
+cleanup_old_simulations()
 
 # =============================================================================
 # 1. Configuration (UPDATE THESE VALUES)
@@ -14,13 +56,11 @@ from esdl.esdl_handler import EnergySystemHandler
 DOTS_BASE_URL = "http://localhost:8011"
 SIMULATION_URL = f"{DOTS_BASE_URL}/api/v1/simulation/start" 
 
-# Load environment variables from the .env file
-load_dotenv()
 
 
-GITHUB_ORG = os.getenv("GITHUB_USERNAME")
+GITHUB_ORG = "vdavidaron"
 ESDL_FILE_PATH = "datacenter_bess_scenario.esdl"
-SIMULATION_DURATION_IN_DAYS = 60
+SIMULATION_DURATION_IN_DAYS = 80
 
 
 
@@ -36,7 +76,6 @@ except FileNotFoundError:
     print(f"❌ Error: Could not find {ESDL_FILE_PATH}.")
     sys.exit(1)
 
-print(GITHUB_ORG)
 
 # =============================================================================
 # 4. Build the DOTS JSON Payload
