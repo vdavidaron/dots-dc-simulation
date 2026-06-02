@@ -34,8 +34,8 @@ API_URL = "https://api.electricitymaps.com/v3/price-day-ahead/past-range"
 ZONE = "NL"
 
 # Simulation Range (Fetch 2 weeks of data by default to have plenty for simulation)
-start_date = datetime(2023, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-end_date = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+start_date = datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+end_date = datetime(2025, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
 # The API limited to ~10 days per request for 15-min granularity usually, 
 # but user said "a few days at a time max". We'll use 2-day chunks.

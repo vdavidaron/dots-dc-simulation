@@ -30,7 +30,7 @@ asset_name = "Datacenter Load" # Using Name instead of ID for stability
 
 
 # Adjust the year to match your simulation start year
-simulation_start_year = 2023
+simulation_start_year = 2024
 simulation_start_date = datetime(simulation_start_year, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
 data_points = []

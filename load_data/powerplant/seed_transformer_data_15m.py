@@ -22,10 +22,10 @@ client = InfluxDBClient(
 client.create_database(database_name)
 
 # --- 2. CONFIGURATION ---
-csv_file_path = "ClimateGroningen.csv"
-target_column = "Irradiance_[W/m^2]"
-measurement_name = "historical_solar_irradiance"
-asset_name = "Local RES" # Using Name instead of ID for stability
+csv_file_path = "OSLelystad.csv"
+target_year_column = "load"
+measurement_name = "transformer_background"
+asset_name = "Grid Connection" # Using Name instead of ID for stability
 
 
 # Adjust the year to match your simulation start year
@@ -40,29 +40,38 @@ print(f"Reading hourly data from {csv_file_path} for year {simulation_start_year
 try:
     with open(csv_file_path, mode='r', encoding='utf-8') as file:
         reader = csv.DictReader(file, delimiter=',')
-        hour_index = 0 
 
+        current_time = simulation_start_date
         for row in reader:
-            raw_value = row[target_column]
-            clean_value = float(raw_value)
+            raw_value = row[target_year_column]
+            
+            # Record time for the current point, then increment for the next row
+            point_time = current_time.strftime('%Y-%m-%dT%H:%M:%SZ')
+            current_time += timedelta(minutes=15)
 
-            current_time = simulation_start_date + timedelta(hours=hour_index)
+            # Skip empty or missing values
+            if not raw_value or not raw_value.strip():
+                continue
+                
+            try:
+                # Convert European decimal comma to dot and scale to Watts if necessary
+                clean_value = float(raw_value) * 1
+            except ValueError:
+                print(f"Skipping invalid load value at {point_time}: '{raw_value}'")
+                continue
 
-            for i in range(4): # 15-min steps
-                t = current_time + timedelta(minutes=15 * i)
-                point = {
-                    "measurement": measurement_name,
-                    "time": t.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    "tags": {
-                        "name": asset_name
-                    },
-                    "fields": {
-                        "Irradiance_W_m2": clean_value
-                    }
+            point = {
+                "measurement": measurement_name,
+                "time": point_time,
+                "tags": {
+                    "name": asset_name
+                },
+                "fields": {
+                    "background_w": clean_value
                 }
-                data_points.append(point)
+            }
+            data_points.append(point)
 
-            hour_index += 1
 
     # --- 4. WRITE TO DATABASE ---
     print(f"Prepared {len(data_points)} points. Writing to InfluxDB...")

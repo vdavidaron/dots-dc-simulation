@@ -10,42 +10,28 @@ from esdl.esdl_handler import EnergySystemHandler
 
 
 def cleanup_old_simulations():
-    """Delete all old simulation and broker pods from the dots namespace."""
-    print("🧹 Cleaning up old simulation pods...")
-    try:
-        result = subprocess.run(
-            ["kubectl", "get", "pods", "-n", "dots",
-             "-l", "simulator_id=SO",
-             "--no-headers", "-o", "custom-columns=NAME:.metadata.name"],
-            capture_output=True, text=True, timeout=10
-        )
-        pods = [p.strip() for p in result.stdout.strip().split('\n') if p.strip()]
-        
-        # Also get old broker pods
-        result_brokers = subprocess.run(
-            ["kubectl", "get", "pods", "-n", "dots",
-             "-l", "model_id",
-             "--no-headers", "-o", "custom-columns=NAME:.metadata.name,STATUS:.status.phase"],
-            capture_output=True, text=True, timeout=10
-        )
-        for line in result_brokers.stdout.strip().split('\n'):
-            parts = line.split()
-            if len(parts) >= 2 and parts[0].startswith("helics-broker-"):
-                pods.append(parts[0])
+    """Delete terminated simulation pods (federates + broker) from the dots namespace.
 
-        if not pods:
-            print("   No old pods found.")
-            return
-        
-        for pod in pods:
-            subprocess.run(
-                ["kubectl", "delete", "pod", "-n", "dots", pod,
-                 "--force", "--grace-period=0"],
-                capture_output=True, timeout=10
-            )
-        print(f"   ✅ Deleted {len(pods)} old pod(s).")
-    except Exception as e:
-        print(f"   ⚠️  Cleanup warning: {e} (continuing anyway)")
+    Uses phase-based field selectors — the only selector that reliably matches
+    orchestrator-deployed pods in this cluster. Running pods are left alone so
+    an in-flight simulation is never killed by accident.
+    """
+    print("[cleanup] Removing simulation pods (Running + terminated)...")
+    for phase in ("Running", "Failed", "Succeeded", "Pending"):
+        r = subprocess.run(
+            ["kubectl", "delete", "pods", "-n", "dots",
+             "-l", "app notin (so-rest, influxdb, grafana)",
+             "--field-selector", f"status.phase={phase}",
+             "--force", "--grace-period=0"],
+            capture_output=True, text=True, timeout=60,
+        )
+        out = (r.stdout or "").strip()
+        err = (r.stderr or "").strip()
+        if out:
+            for line in out.splitlines():
+                print(f"   [{phase}] {line}")
+        if r.returncode != 0 and err:
+            print(f"   [warn] {phase} cleanup rc={r.returncode}: {err}")
 
 
 cleanup_old_simulations()
@@ -60,7 +46,7 @@ SIMULATION_URL = f"{DOTS_BASE_URL}/api/v1/simulation/start"
 
 GITHUB_ORG = "vdavidaron"
 ESDL_FILE_PATH = "datacenter_bess_scenario.esdl"
-SIMULATION_DURATION_IN_DAYS = 80
+SIMULATION_DURATION_IN_DAYS = 60
 
 
 
@@ -73,7 +59,7 @@ try:
         esdl_bytes = esdl_file.read()
     esdl_base64string = base64.b64encode(esdl_bytes).decode('utf-8')
 except FileNotFoundError:
-    print(f"❌ Error: Could not find {ESDL_FILE_PATH}.")
+    print(f"[ERROR] Could not find {ESDL_FILE_PATH}.")
     sys.exit(1)
 
 
@@ -85,37 +71,37 @@ calculation_services = [
     {
         "esdl_type": "ElectricityDemand",
         "calc_service_name": "datacenter_demand_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/datacenter-demand-service:v0.0.17.2",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/datacenter-demand-service:v0.0.19",
         "nr_of_models": 0
     },
     {
         "esdl_type": "Battery",
         "calc_service_name": "battery_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/battery-service:v0.0.17.2",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/battery-service:v0.0.19",
         "nr_of_models": 0
     },
     {
         "esdl_type": "PowerPlant",
         "calc_service_name": "power_plant_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/power-plant-service:v0.0.17.2",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/power-plant-service:v0.0.19",
         "nr_of_models": 0
     },
     {
         "esdl_type": "ElectricityNetwork",
         "calc_service_name": "network_solver_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/network-balancer-service:v0.0.17.2",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/network-balancer-service:v0.0.19",
         "nr_of_models": 0
     },
     {
         "esdl_type": "PVInstallation",
         "calc_service_name": "local_renewable_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/local-renewable-service:v0.0.17.2",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/local-renewable-service:v0.0.19",
         "nr_of_models": 0
     },
     {
         "esdl_type": "GasProducer",
         "calc_service_name": "backup_generator_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/backup-generator-service:v0.0.17.2",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/backup-generator-service:v0.0.19",
         "nr_of_models": 0
     }
 ]
@@ -165,10 +151,10 @@ print(f"Simulation duration in seconds: {simulation_duration_in_seconds}")
 
 payload = {
     "name": "Datacenter BESS Peak Shaving Simulation",
-    "start_date": "2023-03-01 00:00:00",
+    "start_date": "2024-01-01 00:00:00",
     "simulation_duration_in_seconds": f"{simulation_duration_in_seconds}",
     "keep_logs_hours": 24,
-    "log_level": "debug",
+    "log_level": "warning",
     "calculation_services": calculation_services,
     "esdl_base64string": esdl_base64string
 }
@@ -199,7 +185,7 @@ headers = {
 response = requests.post(SIMULATION_URL, headers=headers, json=payload)
 
 if response.status_code in [200, 201, 202]:
-    print("\n✅ Simulation successfully submitted!")
+    print("\n[OK] Simulation successfully submitted!")
     response_data = response.json()
     print("Response from DOTS:")
     print(json.dumps(response_data, indent=2))
@@ -210,5 +196,5 @@ if response.status_code in [200, 201, 202]:
         print(f"(Don't forget to pass the Bearer token in the headers!)")
         
 else:
-    print(f"\n❌ Failed to start simulation. Status code: {response.status_code}")
+    print(f"\n[ERROR] Failed to start simulation. Status code: {response.status_code}")
     print(response.text)

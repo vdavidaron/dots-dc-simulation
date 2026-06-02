@@ -126,7 +126,7 @@ payload = {
     "start_date": "2023-01-01 00:00:00",
     "simulation_duration_in_seconds": f"{simulation_duration_in_seconds}",
     "keep_logs_hours": 24,
-    "log_level": "debug",
+    "log_level": "warning",
     "calculation_services": calculation_services,
     "esdl_base64string": esdl_base64string
 }

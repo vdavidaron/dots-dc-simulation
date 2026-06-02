@@ -78,7 +78,7 @@ payload = {
     "start_date": "2023-01-25 00:00:00",
     "simulation_duration_in_seconds": "86400",
     "keep_logs_hours": 1,
-    "log_level": "debug",
+    "log_level": "warning",
     "calculation_services": [
         {
             "esdl_type": "ElectricityDemand",

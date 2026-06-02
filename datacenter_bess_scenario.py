@@ -49,6 +49,13 @@ lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="forecast_s
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="forecast_sigma_price", value=0.15))  # [fraction] Weron (2014)
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="forecast_seed",        value=42.0))  # [int] RNG seed
 
+# Backup generator (Scope-1) accounting — diesel emission factor and fuel cost.
+# Read by both the Network Balancer (cumulative scope split + cost) and the
+# BackupGen federate (its own footprint telemetry). Exposed as KPIs so a
+# scope-shift scenario can sweep the diesel emission factor and fuel price.
+lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="backup_co2_factor",       value=600.0))  # [gCO2/kWh] diesel combustion
+lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="backup_cost_eur_per_kwh", value=0.40))   # [EUR/kWh] diesel fuel
+
 # SERVICE 1: DatacenterDemandService - Realistic 4MW load
 # power is typically EDouble but minLoad is EInt in some ESDL versions
 datacenter = esdl.ElectricityDemand(id=str(uuid.uuid4()), name="Datacenter Load", power=4000000.0)
@@ -62,9 +69,9 @@ bess.maxChargeRate = 4000000.0
 bess.maxDischargeRate = 4000000.0
 
 # SERVICE 3: PowerPlantService - Realistic 5MW Grid connection
-grid_connection = esdl.PowerPlant(id=str(uuid.uuid4()), name="Grid Connection", power=75000000.0)
+grid_connection = esdl.PowerPlant(id=str(uuid.uuid4()), name="Grid Connection", power=10000000.0)
 grid_connection.efficiency = 1.0         
-grid_connection.minLoad = -75000000      # Use int for minLoad
+grid_connection.minLoad = -10000000      # Use int for minLoad
 
 # SERVICE 4: LocalGenerator - Realistic 5MW Backup
 backup_generator = esdl.GasProducer(id=str(uuid.uuid4()), name="Backup Generator", power=5000000.0)

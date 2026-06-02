@@ -1,2 +1,44 @@
-# .gitignore
+# Environment variables
 .env
+
+# Byte-compiled Python files
+__pycache__/
+*.py[cod]
+
+# Data and logs
+data/
+logs/
+*.log
+
+# Test results
+.pytest_cache/
+htmlcov/
+.coverage
+test_results.xml
+
+# Distribution and packaging
+dist/
+build/
+*.egg-info/
+.Python
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.antigravitycli
+
+# Virtual environments
+venv/
+env/
+ENV/
+runs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Jupyter notebooks
+*.ipynb_checkpoints
