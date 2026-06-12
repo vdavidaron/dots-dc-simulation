@@ -25,6 +25,7 @@ NETWORK_KPI_KEYS = {
     "forecast_sigma_ci", "forecast_sigma_p_dc", "forecast_sigma_price",
     "forecast_seed",
     "backup_co2_factor", "backup_cost_eur_per_kwh",
+    "sim_seed",
 }
 
 
@@ -66,10 +67,13 @@ def mutate_esdl(base_path: Path, overrides: dict[str, Any], out_path: Path) -> s
         forecast_sigma_ci, forecast_sigma_p_dc, forecast_sigma_price, forecast_seed
       Backup Scope-1 accounting (Axis 4 / scope-shift scenario):
         backup_co2_factor, backup_cost_eur_per_kwh
-      Physical (Axes 2, 3, 4) — pass the appropriate key:
+      Monte-Carlo seed (multi-seed robustness study):
+        sim_seed
+      Physical (Axes 2, 3, 4, grid-limit) — pass the appropriate key:
         battery_capacity_wh, battery_max_rate_w
         pv_power_w
         backup_power_w
+        grid_power_w   (transformer/connection capacity → import limit)
     """
     esh = EnergySystemHandler()
     esh.load_file(str(base_path))
@@ -86,6 +90,8 @@ def mutate_esdl(base_path: Path, overrides: dict[str, Any], out_path: Path) -> s
             _set_asset_attr(esh, "PVInstallation", "power", float(v))
         elif k == "backup_power_w":
             _set_asset_attr(esh, "GasProducer", "power", float(v))
+        elif k == "grid_power_w":
+            _set_asset_attr(esh, "PowerPlant", "power", float(v))
         else:
             raise KeyError(f"Unknown ESDL override key: {k}")
 

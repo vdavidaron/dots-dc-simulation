@@ -69,9 +69,12 @@ METRIC_FIELDS = [
     "Cumulative_Scope1_Carbon_g",
     "Cumulative_Cost_EUR",
     "Cumulative_Unserved_kWh",
-    "Cumulative_Baseline_Carbon_g",
-    "Cumulative_Baseline_Cost_EUR",
-    "Cumulative_Baseline_Unserved_kWh",
+    "Cumulative_EqualService_Carbon_g",
+    "Cumulative_EqualService_Cost_EUR",
+    "Cumulative_EqualService_Unserved_kWh",
+    "Cumulative_Passive_Carbon_g",
+    "Cumulative_Passive_Cost_EUR",
+    "Cumulative_Passive_Unserved_kWh",
     "Cumulative_Backup_Energy_kWh",
     "Cumulative_Backup_Fuel_Cost_EUR",
     "Cumulative_Grid_Energy_kWh",
@@ -230,20 +233,17 @@ def _compute_derived_metrics(raw: dict[str, float], annotations: dict, days: int
     dc_kwh = raw.get("Cumulative_DC_Energy_kWh") or 0.0
     derived["CFE_Score"] = min(pv_kwh, dc_kwh) / dc_kwh if dc_kwh > 0 else 0.0
 
-    # Carbon intensity per kWh actually served [gCO2/kWh]. Because the EMS and the
-    # passive baseline serve different amounts of load (the battery converts
-    # unserved load into served load), absolute carbon totals are not directly
-    # comparable; the intensity normalises by served energy so the timing /
-    # arbitrage benefit can be read at equal service. Served = DC - unserved.
-    uns_kwh      = raw.get("Cumulative_Unserved_kWh") or 0.0
-    base_uns_kwh = raw.get("Cumulative_Baseline_Unserved_kWh") or 0.0
-    served_kwh      = max(0.0, dc_kwh - uns_kwh)
-    base_served_kwh = max(0.0, dc_kwh - base_uns_kwh)
+    # Carbon intensity per kWh served [gCO2/kWh]. The equal-service baseline
+    # serves exactly the load the EMS served, so BOTH intensities use the same
+    # served-energy denominator (DC - EMS unserved); this gives a clean per-kWh
+    # comparison of dispatch timing and of the Scope-2 -> Scope-1 shift.
+    uns_kwh       = raw.get("Cumulative_Unserved_kWh") or 0.0
+    served_kwh    = max(0.0, dc_kwh - uns_kwh)
     carbon_g      = raw.get("Cumulative_Carbon_g") or 0.0
-    base_carbon_g = raw.get("Cumulative_Baseline_Carbon_g") or 0.0
-    derived["Served_Energy_kWh"]      = served_kwh
-    derived["CI_Served_gPerKWh"]      = carbon_g / served_kwh if served_kwh > 0 else float("nan")
-    derived["Baseline_CI_Served_gPerKWh"] = base_carbon_g / base_served_kwh if base_served_kwh > 0 else float("nan")
+    es_carbon_g   = raw.get("Cumulative_EqualService_Carbon_g") or 0.0
+    derived["Served_Energy_kWh"]          = served_kwh
+    derived["CI_Served_gPerKWh"]          = carbon_g / served_kwh if served_kwh > 0 else float("nan")
+    derived["EqualService_CI_Served_gPerKWh"] = es_carbon_g / served_kwh if served_kwh > 0 else float("nan")
 
     # BESS capacity from annotations (axis 2 provides capacity_mwh; default = reference 4 MWh)
     bess_mwh    = float(annotations.get("capacity_mwh", 4.0))
@@ -253,7 +253,11 @@ def _compute_derived_metrics(raw: dict[str, float], annotations: dict, days: int
     capex       = bess_kwh * BESS_CAPEX_EUR_PER_KWH
     opex_yr     = bess_kw  * BESS_OPEX_EUR_PER_KW_YR
 
-    baseline_cost = raw.get("Cumulative_Baseline_Cost_EUR") or 0.0
+    # NPV uses the equal-service arbitrage saving (timing value at equal service),
+    # which is the conservative "operational savings" figure. The reliability
+    # value of the rescued load against the passive baseline is reported
+    # separately as unserved-energy reduction, not monetised here.
+    baseline_cost = raw.get("Cumulative_EqualService_Cost_EUR") or 0.0
     actual_cost   = raw.get("Cumulative_Cost_EUR") or 0.0
     savings_sim   = max(0.0, baseline_cost - actual_cost)
     annual_savings = savings_sim * (365.0 / days)

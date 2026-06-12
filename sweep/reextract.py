@@ -31,46 +31,79 @@ DAYS = 60        # simulation horizon used by the sweep (matches live_runner def
 _REGEN = set(lr.METRIC_FIELDS) | {
     "Replan_Count", "Min_SOC_Overall", "Min_SOC_During_Curtailment",
     "Grid_Compliance_Rate", "CFE_Score", "NPV_EUR", "LCOS_EUR_per_kWh",
-    "Served_Energy_kWh", "CI_Served_gPerKWh", "Baseline_CI_Served_gPerKWh",
+    "Served_Energy_kWh", "CI_Served_gPerKWh", "EqualService_CI_Served_gPerKWh",
+    # legacy single-baseline columns, dropped on rewrite
+    "Cumulative_Baseline_Carbon_g", "Cumulative_Baseline_Cost_EUR",
+    "Cumulative_Baseline_Unserved_kWh", "Baseline_CI_Served_gPerKWh",
 }
 
 
-def query_naive_baseline(client: InfluxDBClient, sim_id: str) -> tuple[float, float]:
-    """Baseline (B): equal-service, naive-timing counterfactual.
+def query_baselines(client: InfluxDBClient, sim_id: str) -> dict[str, float]:
+    """Recompute both counterfactual baselines from the per-step series.
 
-    Integrated from the per-step series. The baseline serves exactly the load the
-    EMS served (``served_datacenter_power_w``), meeting it instantaneously from PV
-    then grid at the spot carbon intensity / price of the step it is consumed,
-    with no battery time-shifting. Returns (carbon_gCO2, cost_EUR).
+    EQUAL-SERVICE: serves exactly the load the EMS served
+    (``served_datacenter_power_w``) from PV then grid at the spot CI/price, no
+    battery. PASSIVE: same PV and grid limit but no battery, so it serves net
+    load (demand - PV) up to the per-step grid limit and sheds the rest. The grid
+    limit is read from the PowerPlant measurement and aligned by timestamp.
+    Returns the six cumulative baseline metrics.
     """
-    q = (
-        'SELECT "Carbon_Intensity" AS ci, '
-        '"Electricity_Price_EUR_per_MWh" AS price, '
-        '"PV_Generation_W" AS pv, '
-        '"served_datacenter_power_w" AS served '
+    en = client.query(
+        'SELECT "Carbon_Intensity" AS ci, "Electricity_Price_EUR_per_MWh" AS price, '
+        '"PV_Generation_W" AS pv, "served_datacenter_power_w" AS served, '
+        '"Total_Routed_Demand_W" AS demand '
         'FROM "ElectricityNetwork" '
         f"WHERE \"simulation_id\" = '{sim_id}'"
     )
-    rs = client.query(q)
-    carbon_g = 0.0
-    cost_eur = 0.0
+    # Per-step grid import limit lives in the PowerPlant measurement.
+    pp = client.query(
+        'SELECT "Actual_Power_Limit_W" AS lim FROM "PowerPlant" '
+        f"WHERE \"simulation_id\" = '{sim_id}'"
+    )
+    limit_by_time = {p["time"]: p.get("lim") for p in pp.get_points()}
+
+    es_carbon = es_cost = es_uns = 0.0
+    pa_carbon = pa_cost = pa_uns = 0.0
     n = 0
-    for p in rs.get_points():
-        ci = p.get("ci")
-        served = p.get("served")
-        if ci is None or served is None:
+    for p in en.get_points():
+        ci, served, demand = p.get("ci"), p.get("served"), p.get("demand")
+        if ci is None or served is None or demand is None:
             continue
+        price = p.get("price") or 0.0
         pv_kw = (p.get("pv") or 0.0) / 1000.0
         served_kw = served / 1000.0
-        naive_grid_kw = max(0.0, served_kw - pv_kw)
-        carbon_g += ci * naive_grid_kw * DT_HOURS
-        price = p.get("price")
-        if price is not None:
-            cost_eur += price * naive_grid_kw * DT_HOURS / 1000.0
+        demand_kw = demand / 1000.0
+
+        # Equal-service: serve the EMS-served load, naive timing, no battery.
+        es_grid = max(0.0, served_kw - pv_kw)
+        es_carbon += ci * es_grid * DT_HOURS
+        es_cost   += price * es_grid * DT_HOURS / 1000.0
+        es_uns    += max(0.0, demand_kw - served_kw) * DT_HOURS
+
+        # Passive: serve net load up to the grid limit, shed the rest, no battery.
+        lim_w = limit_by_time.get(p["time"])
+        lim_kw = (lim_w / 1000.0) if lim_w is not None else float("inf")
+        net_kw = max(0.0, demand_kw - pv_kw)
+        pa_grid = min(net_kw, lim_kw)
+        pa_carbon += ci * pa_grid * DT_HOURS
+        pa_cost   += price * pa_grid * DT_HOURS / 1000.0
+        pa_uns    += max(0.0, net_kw - lim_kw) * DT_HOURS
         n += 1
+
     if n == 0:
-        return float("nan"), float("nan")
-    return carbon_g, cost_eur
+        nan = float("nan")
+        return {k: nan for k in (
+            "Cumulative_EqualService_Carbon_g", "Cumulative_EqualService_Cost_EUR",
+            "Cumulative_EqualService_Unserved_kWh", "Cumulative_Passive_Carbon_g",
+            "Cumulative_Passive_Cost_EUR", "Cumulative_Passive_Unserved_kWh")}
+    return {
+        "Cumulative_EqualService_Carbon_g": es_carbon,
+        "Cumulative_EqualService_Cost_EUR": es_cost,
+        "Cumulative_EqualService_Unserved_kWh": es_uns,
+        "Cumulative_Passive_Carbon_g": pa_carbon,
+        "Cumulative_Passive_Cost_EUR": pa_cost,
+        "Cumulative_Passive_Unserved_kWh": pa_uns,
+    }
 
 
 def reextract_axis(client: InfluxDBClient, csv_path: Path) -> None:
@@ -85,10 +118,8 @@ def reextract_axis(client: InfluxDBClient, csv_path: Path) -> None:
             new_rows.append(r)
             continue
         metrics = lr._query_cumulative(client, sim_id)
-        # Switch to baseline (B): equal-service, naive-timing (post-processed).
-        nb_carbon, nb_cost = query_naive_baseline(client, sim_id)
-        metrics["Cumulative_Baseline_Carbon_g"] = nb_carbon
-        metrics["Cumulative_Baseline_Cost_EUR"] = nb_cost
+        # Recompute both counterfactual baselines from the per-step series.
+        metrics.update(query_baselines(client, sim_id))
         # Derived metrics (CFE, NPV, LCOS, served-energy carbon intensity) use the
         # row itself as the annotation source (capacity_mwh etc.).
         metrics.update(lr._compute_derived_metrics(metrics, r, DAYS))
@@ -97,6 +128,7 @@ def reextract_axis(client: InfluxDBClient, csv_path: Path) -> None:
         new_rows.append(merged)
 
         ems_c = metrics.get("Cumulative_Carbon_g", float("nan")) / 1e6
+        nb_carbon = metrics.get("Cumulative_EqualService_Carbon_g", float("nan"))
         save_c = ((nb_carbon - metrics.get("Cumulative_Carbon_g", 0.0)) / nb_carbon * 100
                   if nb_carbon and nb_carbon == nb_carbon else float("nan"))
         print(f"  {csv_path.name:>26} {str(r.get('label')):>18}: "

@@ -56,6 +56,10 @@ lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="forecast_s
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="backup_co2_factor",       value=600.0))  # [gCO2/kWh] diesel combustion
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="backup_cost_eur_per_kwh", value=0.40))   # [EUR/kWh] diesel fuel
 
+# Monte-Carlo seed for the demand-noise and transformer-background stochastic
+# fallbacks. Read by the demand and grid federates; vary it for multi-seed runs.
+lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="sim_seed", value=42.0))  # [int] noise seed
+
 # SERVICE 1: DatacenterDemandService - Realistic 4MW load
 # power is typically EDouble but minLoad is EInt in some ESDL versions
 datacenter = esdl.ElectricityDemand(id=str(uuid.uuid4()), name="Datacenter Load", power=4000000.0)
