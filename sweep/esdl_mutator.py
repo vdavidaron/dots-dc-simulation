@@ -17,9 +17,10 @@ from esdl.esdl_handler import EnergySystemHandler
 
 NETWORK_KPI_KEYS = {
     "w_unserved", "w_carbon", "w_price", "w_effort", "w_soc_low",
-    "soc_baseline",
+    "soc_baseline", "cfe_constraint_mode", "cfe_min_fraction",
     "enable_battery", "enable_backup_generator", "enable_renewable_service",
     "enable_change_management", "enable_goal_management", "enable_mandate",
+    "enable_shared_transformer",
     "mpc_soc_drift_threshold", "mpc_demand_spike_threshold",
     "mpc_horizon_steps", "mpc_replan_cooldown",
     "forecast_sigma_ci", "forecast_sigma_p_dc", "forecast_sigma_price",

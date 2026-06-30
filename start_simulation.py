@@ -71,37 +71,37 @@ calculation_services = [
     {
         "esdl_type": "ElectricityDemand",
         "calc_service_name": "datacenter_demand_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/datacenter-demand-service:v0.0.19",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/datacenter-demand-service:v0.0.20",
         "nr_of_models": 0
     },
     {
         "esdl_type": "Battery",
         "calc_service_name": "battery_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/battery-service:v0.0.19",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/battery-service:v0.0.20",
         "nr_of_models": 0
     },
     {
         "esdl_type": "PowerPlant",
         "calc_service_name": "power_plant_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/power-plant-service:v0.0.19",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/power-plant-service:v0.0.20",
         "nr_of_models": 0
     },
     {
         "esdl_type": "ElectricityNetwork",
         "calc_service_name": "network_solver_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/network-balancer-service:v0.0.19",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/network-balancer-service:v0.0.20",
         "nr_of_models": 0
     },
     {
         "esdl_type": "PVInstallation",
         "calc_service_name": "local_renewable_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/local-renewable-service:v0.0.19",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/local-renewable-service:v0.0.20",
         "nr_of_models": 0
     },
     {
         "esdl_type": "GasProducer",
         "calc_service_name": "backup_generator_service",
-        "service_image_url": f"ghcr.io/{GITHUB_ORG}/backup-generator-service:v0.0.19",
+        "service_image_url": f"ghcr.io/{GITHUB_ORG}/backup-generator-service:v0.0.20",
         "nr_of_models": 0
     }
 ]

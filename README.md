@@ -34,7 +34,7 @@ generator is used for a signal only when a real sample is missing for that step.
 
 | Signal | Source | Seed script |
 |---|---|---|
-| Datacenter demand | TNO research data-center profile, scaled to 4 MW | `load_data/seed_from_csv.py` (`Rack-total-data.csv`) |
+| Datacenter demand | TNO research data-center profile, ~1 MW average (4 MW nameplate) | `load_data/seed_from_csv.py` (`Rack-total-data.csv`) |
 | Solar irradiance | KNMI meteorological station | `load_data/seed_solar_data.py` (`ClimateGroningen.csv`) |
 | Transformer background / limit | Liander open data, Lelystad substation | `load_data/powerplant/seed_transformer_data_15m.py` (`OSLelystad.csv`) |
 | Grid carbon intensity | Electricity Maps (NL zone) | `load_data/seed_carbon_intensity_data.py` |
@@ -47,7 +47,9 @@ a contracted capacity `C` (the ESDL `PowerPlant.power`):
 
 - **Upper limit:** `B_t + D_t <= C`. The maximum datacenter import is `C - B_t`;
   exceeding it trips the connection. The thesis grid-limit sweep lowers `C`
-  toward and below the 4 MW load to force curtailment.
+  toward and below the combined background-plus-load demand `B_t + D_t` to force
+  curtailment (the ~1 MW load alone rarely exceeds `C`; the shared background is
+  what consumes the headroom).
 - **Lower limit (mandate):** `B_t + D_t >= -C`. A large upstream renewable
   surplus pushing the background below `-C` obliges the datacenter to absorb the
   excess (the more it soaks up, the lower the price). Toggled by `enable_mandate`.

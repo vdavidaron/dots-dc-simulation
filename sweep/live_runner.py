@@ -55,12 +55,12 @@ def cleanup_pods() -> None:
 
 GITHUB_ORG = "vdavidaron"
 SERVICES = [
-    ("ElectricityDemand",   "datacenter_demand_service",  "datacenter-demand-service:v0.0.19"),
-    ("Battery",             "battery_service",            "battery-service:v0.0.19"),
-    ("PowerPlant",          "power_plant_service",        "power-plant-service:v0.0.19"),
-    ("ElectricityNetwork",  "network_solver_service",     "network-balancer-service:v0.0.19"),
-    ("PVInstallation",      "local_renewable_service",    "local-renewable-service:v0.0.19"),
-    ("GasProducer",         "backup_generator_service",   "backup-generator-service:v0.0.19"),
+    ("ElectricityDemand",   "datacenter_demand_service",  "datacenter-demand-service:v0.0.20"),
+    ("Battery",             "battery_service",            "battery-service:v0.0.23"),
+    ("PowerPlant",          "power_plant_service",        "power-plant-service:v0.0.20"),
+    ("ElectricityNetwork",  "network_solver_service",     "network-balancer-service:v0.0.23"),
+    ("PVInstallation",      "local_renewable_service",    "local-renewable-service:v0.0.20"),
+    ("GasProducer",         "backup_generator_service",   "backup-generator-service:v0.0.20"),
 ]
 
 METRIC_FIELDS = [
@@ -84,6 +84,8 @@ METRIC_FIELDS = [
     "Cumulative_BESS_Discharge_kWh",
     "Cumulative_Congestion_Served_kWh",
 ]
+
+DT_HOURS = 0.25  # 15-minute dispatch step (matches reextract.DT_HOURS)
 
 # Economic assumptions for NPV / LCOS post-processing
 BESS_CAPEX_EUR_PER_KWH  = 200.0   # EUR/kWh, BNEF 2024 median for utility-scale LFP in NL
@@ -224,6 +226,54 @@ def _query_cumulative(client: InfluxDBClient, sim_id: str) -> dict[str, float]:
     return out
 
 
+def _query_grid_cfe(client: InfluxDBClient, sim_id: str) -> dict[str, float]:
+    """Carbon-free energy [kWh] imported from the grid over the run.
+
+    Joins the per-step grid draw (``Routed_to_Grid_W``, logged by the Network
+    Balancer for this sim) with the exogenous grid carbon-free share
+    (``carbon_free_pct``, seeded into the ``carbon_intensity`` measurement from
+    Electricity Maps' /carbon-free-energy endpoint) by timestamp, and weights
+    each step's grid energy by that step's carbon-free fraction.
+
+    Because the weighting is on grid energy *actually drawn*, unserved load never
+    enters the numerator or the denominator — the carbon-free percentage is a
+    pure property of the grid imports, exactly as requested.
+
+    Returns ``Cumulative_Grid_CFE_kWh`` and ``Grid_CFE_Coverage`` (fraction of
+    steps that had a matching CFE sample; a low value means the seed data did not
+    cover the simulated window and ``Grid_CFE_Pct`` should be treated as partial).
+    """
+    en = client.query(
+        'SELECT "Routed_to_Grid_W" AS g FROM "ElectricityNetwork" '
+        f"WHERE \"simulation_id\" = '{sim_id}'"
+    )
+    rows = [(p["time"], p["g"]) for p in en.get_points() if p.get("g") is not None]
+    if not rows:
+        return {"Cumulative_Grid_CFE_kWh": float("nan"), "Grid_CFE_Coverage": 0.0}
+
+    times = [t for t, _ in rows]
+    t_lo, t_hi = min(times), max(times)
+    cfe = client.query(
+        'SELECT "carbon_free_pct" AS c FROM "carbon_intensity" '
+        f"WHERE time >= '{t_lo}' AND time <= '{t_hi}'"
+    )
+    cfe_by_time = {p["time"]: p["c"] for p in cfe.get_points() if p.get("c") is not None}
+
+    grid_cf_kwh = 0.0
+    matched = 0
+    for t, g_w in rows:
+        c_pct = cfe_by_time.get(t)
+        if c_pct is None:
+            continue
+        grid_cf_kwh += (g_w / 1000.0) * DT_HOURS * (float(c_pct) / 100.0)
+        matched += 1
+
+    return {
+        "Cumulative_Grid_CFE_kWh": grid_cf_kwh,
+        "Grid_CFE_Coverage": matched / len(rows),
+    }
+
+
 def _compute_derived_metrics(raw: dict[str, float], annotations: dict, days: int) -> dict[str, float]:
     """Compute CFE score, NPV, and LCOS from raw cumulative metrics and run parameters."""
     derived: dict[str, float] = {}
@@ -232,6 +282,21 @@ def _compute_derived_metrics(raw: dict[str, float], annotations: dict, days: int
     pv_kwh = raw.get("Cumulative_PV_Energy_kWh") or 0.0
     dc_kwh = raw.get("Cumulative_DC_Energy_kWh") or 0.0
     derived["CFE_Score"] = min(pv_kwh, dc_kwh) / dc_kwh if dc_kwh > 0 else 0.0
+
+    # Grid carbon-free share (Electricity Maps): energy-weighted % of grid imports
+    # that were carbon-free. Weighted by grid energy actually drawn, so unserved
+    # load does not affect it — this is the "percentage from the grid".
+    grid_kwh    = raw.get("Cumulative_Grid_Energy_kWh") or 0.0
+    grid_cf_kwh = raw.get("Cumulative_Grid_CFE_kWh") or 0.0
+    derived["Grid_CFE_Pct"] = (grid_cf_kwh / grid_kwh * 100.0) if grid_kwh > 0 else float("nan")
+
+    # 24/7 CFE including the grid mix: on-site PV plus the carbon-free portion of
+    # grid imports, matched against DC consumption (capped at 100%). Extends
+    # CFE_Score, which credited PV only. Approximate: grid CF energy includes
+    # imports that charged the battery, so this is an upper estimate of the
+    # carbon-free energy reaching the DC; Grid_CFE_Pct is the exact grid figure.
+    cfe_matched = min(pv_kwh, dc_kwh) + grid_cf_kwh
+    derived["CFE_24x7_Score"] = min(1.0, cfe_matched / dc_kwh) if dc_kwh > 0 else 0.0
 
     # Carbon intensity per kWh served [gCO2/kWh]. The equal-service baseline
     # serves exactly the load the EMS served, so BOTH intensities use the same
@@ -259,7 +324,7 @@ def _compute_derived_metrics(raw: dict[str, float], annotations: dict, days: int
     # separately as unserved-energy reduction, not monetised here.
     baseline_cost = raw.get("Cumulative_EqualService_Cost_EUR") or 0.0
     actual_cost   = raw.get("Cumulative_Cost_EUR") or 0.0
-    savings_sim   = max(0.0, baseline_cost - actual_cost)
+    savings_sim   = baseline_cost - actual_cost
     annual_savings = savings_sim * (365.0 / days)
 
     # Net Present Value over asset lifetime
@@ -340,6 +405,7 @@ def run_axis(axis_key: str, base_esdl: Path, runs_dir: Path,
             print(f"  Run did not succeed (final='{final}') — still collecting any metrics")
 
         metrics = _query_cumulative(influx, sim_id)
+        metrics.update(_query_grid_cfe(influx, sim_id))
         metrics.update(_compute_derived_metrics(metrics, spec.annotations, days))
         row: dict[str, Any] = {"label": spec.label, "sim_id": sim_id,
                                "final_status": final}

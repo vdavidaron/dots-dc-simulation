@@ -142,16 +142,27 @@ AXIS7_SEASONAL_PARETO: list[RunSpec] = [
 
 
 # ── Axis 8: Transformer (grid connection) capacity sweep — curtailment severity ──
-# Reduces the firm grid limit toward/below the 4 MW DC load to force curtailment,
-# drive the battery to depletion, and dispatch the backup generator. This is the
-# scenario that finally exercises the Scope-1/Scope-2 shift of RQ3, which the
-# reference 10 MW connection never triggers. Carbon-anchored, backup enabled.
+# Sweeps the connection capacity to force curtailment. The IT load averages
+# ~1 MW (seeded profile; the 4 MW asset value is a nameplate ceiling), so on a
+# shared transformer it is the background load — which the DC sits on top of —
+# that eats the headroom and starves the DC even at large nameplates, driving the
+# battery to depletion and dispatching the backup generator. This exercises the
+# Scope-1/Scope-2 shift of RQ3 that the reference connection rarely triggers.
+# Carbon-anchored, backup enabled.
+# Swept over BOTH grid-connection models so the diesel/unserved gap between them
+# is explicit:
+#   shared    → grid_power_w is a transformer shared with the OSLelystad background
+#               load (mean ~4.7 MW, p90 ~8.4 MW). DC headroom = capacity − background,
+#               so even a 6 MW connection starves the DC >10% of the time.
+#   dedicated → grid_power_w is the DC's own feeder; the DC sees the full nameplate.
 AXIS8_GRIDLIMIT: list[RunSpec] = [
-    RunSpec(f"grid_{mw}MW", {
-        "grid_power_w":            mw * 1e6,
-        "enable_backup_generator": 1.0,
+    RunSpec(f"grid_{mw}MW_{tag}", {
+        "grid_power_w":              mw * 1e6,
+        "enable_backup_generator":   1.0,
+        "enable_shared_transformer": shared,
         "w_carbon": 1.0, "w_price": 0.0,
-    }, {"grid_mw": float(mw)})
+    }, {"grid_mw": float(mw), "transformer": tag})
+    for tag, shared in (("shared", 1.0), ("dedicated", 0.0))
     for mw in (2, 3, 4, 6, 10)
 ]
 
@@ -198,8 +209,71 @@ AXIS10_SOCBASE: list[RunSpec] = [
 ]
 
 
+# ── Axis 11: single-objective floors — lowest reachable carbon / cost ─────────
+# "What is the best a single objective can reach if we don't care about any other?"
+# Unlike Axis 1's "carbon_only"/"cost_only" (which still carry w_soc_low=1e6,
+# w_effort, and the SOC-baseline pin — Axis 10 shows these dominate and flatten
+# the response), each run here zeroes EVERY soft-preference term so only the one
+# chosen objective drives the LP. The grid-availability priority is deliberately
+# left untouched: w_unserved keeps its ESDL default (1e9), so reliability is still
+# the top lexicographic priority and load is never shed to game the metric.
+#
+# The transformer limit is lifted far above the DC load (100 MW) so every kWh can
+# be met from the grid — availability is then a non-issue and the reported
+# Cumulative_Carbon_g / Cumulative_Cost_EUR are true single-objective floors.
+#
+#   min_carbon       → lowest Cumulative_Carbon_g  reachable
+#   min_cost         → lowest Cumulative_Cost_EUR  reachable
+#   max_availability → minimise unserved only (meaningful under curtailment; with
+#                      the 100 MW limit it should reach ~zero unserved). Kept here
+#                      so all three single-objective extremes are reproducible.
+_PURE = {"w_effort": 0.0, "w_soc_low": 0.0, "soc_baseline": 0.0,
+         "grid_power_w": 100e6, "enable_battery": 1.0}
+AXIS11_SINGLE_OBJECTIVE: list[RunSpec] = [
+    RunSpec("min_carbon",       {**_PURE, "w_carbon": 1.0, "w_price": 0.0},
+            {"objective": "min_carbon"}),
+    RunSpec("min_cost",         {**_PURE, "w_carbon": 0.0, "w_price": 1.0},
+            {"objective": "min_cost"}),
+    RunSpec("max_availability", {**_PURE, "w_carbon": 0.0, "w_price": 0.0},
+            {"objective": "max_availability"}),
+]
+
+
+# ── Axis 12: carbon-free-operation constraint (HARD floor, block mode) ────────
+# HARD per-step gate (cfe_constraint_mode=2): the grid may be imported from only
+# when its mix is at least `cfe_min_fraction` carbon-free; in any dirtier step
+# grid import is forbidden and the load must be met from PV + battery, or it goes
+# UNSERVED. This is the "only consume clean energy" semantics — when clean energy
+# is not available and storage cannot cover it, the deficit surfaces as unserved
+# load (not as relaxed dirty-grid draw). Sweeping the floor at fixed storage shows
+# how unserved energy grows as the clean requirement tightens; the battery size
+# needed for zero-unserved at a given floor is the storage for green operation.
+# cfe_floor=0.0 is the unconstrained reference. Carbon-anchored, battery enabled.
+# Backup generator is DISABLED: with it on, the blocked dirty-grid load would be
+# picked up by the diesel (Scope-1) instead of surfacing as unserved, which both
+# hides the storage-sizing signal and raises carbon (replacing ~grid CI with the
+# dirtier ~600 gCO2/kWh diesel). Reliability here is the battery's job alone.
+AXIS12_CFE: list[RunSpec] = [
+    RunSpec(f"cfe_{int(thr * 100):03d}_{season}", {
+        "cfe_constraint_mode": 2.0,     # block dirty-grid steps (hard floor)
+        "cfe_min_fraction":    thr,
+        "w_carbon": 1.0, "w_price": 0.0,
+        "enable_battery": 1.0,
+        "enable_backup_generator": 0.0,  # else diesel masks unserved (see note above)
+        "battery_capacity_wh": 100 * 1e6,
+        "battery_max_rate_w": 100 * 1e6,
+        "grid_power_w": 100e6,
+    }, {"cfe_floor": thr, "season": season, "month_label": month_label, "capacity_mwh": 100.0},
+    start_date=start_date)
+    for season, month_label, start_date in _SEASONAL_CONFIGS
+    for thr in (0.0, 0.5, 0.7, 0.85, 1.0)
+]
+
+
 ALL_AXES = {
     "axis1_pareto":          AXIS1_PARETO,
+    "axis11_single_obj":     AXIS11_SINGLE_OBJECTIVE,
+    "axis12_cfe":            AXIS12_CFE,
     "axis2_bess":            AXIS2_BESS,
     "axis3_pv":              AXIS3_PV,
     "axis4_backup":          AXIS4_BACKUP,

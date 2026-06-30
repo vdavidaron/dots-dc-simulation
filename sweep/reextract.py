@@ -32,6 +32,7 @@ _REGEN = set(lr.METRIC_FIELDS) | {
     "Replan_Count", "Min_SOC_Overall", "Min_SOC_During_Curtailment",
     "Grid_Compliance_Rate", "CFE_Score", "NPV_EUR", "LCOS_EUR_per_kWh",
     "Served_Energy_kWh", "CI_Served_gPerKWh", "EqualService_CI_Served_gPerKWh",
+    "Cumulative_Grid_CFE_kWh", "Grid_CFE_Coverage", "Grid_CFE_Pct", "CFE_24x7_Score",
     # legacy single-baseline columns, dropped on rewrite
     "Cumulative_Baseline_Carbon_g", "Cumulative_Baseline_Cost_EUR",
     "Cumulative_Baseline_Unserved_kWh", "Baseline_CI_Served_gPerKWh",
@@ -120,6 +121,8 @@ def reextract_axis(client: InfluxDBClient, csv_path: Path) -> None:
         metrics = lr._query_cumulative(client, sim_id)
         # Recompute both counterfactual baselines from the per-step series.
         metrics.update(query_baselines(client, sim_id))
+        # Grid carbon-free share from the seeded Electricity Maps CFE series.
+        metrics.update(lr._query_grid_cfe(client, sim_id))
         # Derived metrics (CFE, NPV, LCOS, served-energy carbon intensity) use the
         # row itself as the annotation source (capacity_mwh etc.).
         metrics.update(lr._compute_derived_metrics(metrics, r, DAYS))

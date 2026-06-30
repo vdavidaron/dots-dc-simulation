@@ -1,64 +1,68 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<esdl:EnergySystem xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:esdl="http://www.tno.nl/esdl" name="Datacenter_BESS_Scenario" id="0e6435d4-b36b-4529-88c4-f3532fae6c4a" description="Datacenter with BESS and grid connection">
-  <instance xsi:type="esdl:Instance" name="scenario_instance" id="86170fab-2678-460e-b728-383b22b7fd55">
-    <area xsi:type="esdl:Area" name="Datacenter_Site" id="a5f40862-b87a-4b84-9dc3-0be8ebbedc45">
-      <asset xsi:type="esdl:ElectricityNetwork" id="f15c3bcd-2afb-4d5d-a2cf-938d686d1a9d" name="Site Electricity Management System">
-        <port xsi:type="esdl:OutPort" name="net_to_datacenter" id="6b2a15f1-a780-4dc4-9fcf-0b7c60e55ea7" connectedTo="b8492d50-0ed4-4499-a59f-6b99bc2172d5"/>
-        <port xsi:type="esdl:OutPort" name="net_to_bess" id="643fac94-fad1-4403-932b-a02cdaa0cea2" connectedTo="5c4ae837-a721-44d7-a264-302c23bd5456"/>
-        <port xsi:type="esdl:InPort" name="net_from_bess" id="7601b6ab-bf0a-413b-bf72-93e824919870" connectedTo="b59e3188-20cd-4922-949c-adeb2b97c9c8"/>
-        <port xsi:type="esdl:OutPort" name="net_to_grid" id="0fa083f0-d193-4d15-93d3-9408ebd296f4" connectedTo="bc918d72-2e12-488a-9c36-3548a9ce53a1"/>
-        <port xsi:type="esdl:InPort" name="net_from_grid" id="7ea6aa3f-fbc7-4628-a3f5-aaa1c88a0934" connectedTo="b87f2512-d237-4778-8df0-31602d418453"/>
-        <port xsi:type="esdl:InPort" name="net_from_backup_generator" id="18e2bea9-fec8-4476-9a42-e41ebeebb076" connectedTo="315c6dd3-365d-492d-9d81-e95ccb326750"/>
-        <port xsi:type="esdl:InPort" name="net_from_local_res" id="c72f5ccf-11db-49f8-8d50-d40783d60fd5" connectedTo="5d3976e4-8dba-4199-9cc1-e32032314726"/>
-        <KPIs xsi:type="esdl:KPIs" id="338cd00c-ba44-4053-9924-ae081ad445cf">
-          <kpi xsi:type="esdl:DoubleKPI" name="w_unserved" value="1000000000.0" id="e1549126-9dc4-4a1d-ab4c-16097116fcde"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="w_carbon" value="1.0" id="fcda82f3-e83f-44c0-a5c4-4b76940b6ae0"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="w_price" value="1.0" id="b69d5a98-3bfe-4d0a-b139-d4eea8c47e25"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="w_effort" value="0.01" id="e46b6e0d-5f1c-4df0-a311-1f01c7b621bd"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="w_soc_low" value="1000000.0" id="7c2d9293-1909-4b45-a78d-1c26c8550fc6"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="soc_baseline" value="50.0" id="8457ce1d-fb28-4f4d-a3c5-f366613c95fb"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="enable_battery" value="1.0" id="9c4a2992-31c9-45d7-9a48-0ae2664b8e7d"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="enable_backup_generator" value="1.0" id="fe3c9ca3-49ca-446b-a082-185dede70728"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="enable_renewable_service" value="1.0" id="0c65a43a-15f7-41b1-8927-a54c3ad9587d"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="enable_change_management" value="1.0" id="f74121a9-090d-490d-a239-c97c52be1bcc"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="enable_goal_management" value="1.0" id="f297ecaf-5e69-4c5b-8bfb-a3531c4fd9c9"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="enable_mandate" value="1.0" id="a380c030-3e22-48b9-aad2-d0d8eee96967"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="mpc_soc_drift_threshold" value="5.0" id="35df33e5-a99d-4faa-8238-1f344beda1d6"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="mpc_demand_spike_threshold" value="0.1" id="2be9f7cd-bc22-483d-bdad-69446f0aad0d"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="mpc_horizon_steps" value="24.0" id="b757ff9f-9844-4798-b47a-d83e2421f9a3"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="mpc_replan_cooldown" value="4.0" id="c53d8a9a-05b0-4f4d-bc14-da2c69371e02"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="forecast_sigma_ci" value="0.12" id="ceeb96e8-3dfe-472a-bc63-ac4ddc2113db"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="forecast_sigma_p_dc" value="0.05" id="71119e59-a36a-46d2-8885-e404bd836f0d"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="forecast_sigma_price" value="0.15" id="3a34d533-69b0-4815-9076-b91e444ecd5f"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="forecast_seed" value="42.0" id="30a05c17-309f-4506-af87-26e8779fc793"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="backup_co2_factor" value="600.0" id="877e6840-d9f3-452c-852f-991e232c5327"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="backup_cost_eur_per_kwh" value="0.4" id="94fc82af-2ea6-4efe-ad8f-1e98399b9cc0"/>
-          <kpi xsi:type="esdl:DoubleKPI" name="sim_seed" value="42.0" id="5f6c4b33-afbc-4f3f-aa99-c82358588019"/>
+<esdl:EnergySystem xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:esdl="http://www.tno.nl/esdl" name="Datacenter_BESS_Scenario" description="Datacenter with BESS and grid connection" id="9e6ef2f4-ebdb-449a-a98c-677753f56cdf">
+  <instance xsi:type="esdl:Instance" id="3b05ea7a-281b-4aff-9eaa-d6b6752d00aa" name="scenario_instance">
+    <area xsi:type="esdl:Area" id="6548897b-b73b-44fe-8986-ccf860afec3f" name="Datacenter_Site">
+      <asset xsi:type="esdl:ElectricityNetwork" name="Site Electricity Management System" id="bab54f65-82dc-41b3-af8e-afae8238819f">
+        <port xsi:type="esdl:OutPort" name="net_to_datacenter" id="7070a090-754a-42ce-b1a8-f2d1151c7e43" connectedTo="838118ab-2db5-4f4e-9579-078ac83a79ce"/>
+        <port xsi:type="esdl:OutPort" name="net_to_bess" id="4f4bec2d-8ab1-4aeb-9b95-fcb9d078a9e8" connectedTo="a1086733-30f3-4f3d-9f6c-e0ab1044ef69"/>
+        <port xsi:type="esdl:InPort" name="net_from_bess" id="eb272b68-df61-467c-ab2a-2896a7cefd02" connectedTo="79456d8f-f6ce-44e8-8657-cc04c395ad3b"/>
+        <port xsi:type="esdl:OutPort" name="net_to_grid" id="d5e555aa-b1ac-4377-9803-063f9cf09316" connectedTo="a402a4ec-3b63-47a0-b766-3aeb25d6900b"/>
+        <port xsi:type="esdl:InPort" name="net_from_grid" id="bb9bafb3-9d09-4914-af50-48c73ee01a4e" connectedTo="a21daa45-63a2-426e-b01f-da7e4a978bc0"/>
+        <port xsi:type="esdl:InPort" name="net_from_backup_generator" id="b696eef7-43ba-46c4-bfd3-a455e921a39f" connectedTo="6f7dfd83-48ef-4eed-977f-f964a8e577ee"/>
+        <port xsi:type="esdl:InPort" name="net_from_local_res" id="b38ae08a-5a1f-48b0-9ed6-399ca50f0eba" connectedTo="0109c6a3-9162-4996-99cf-4276c7d9c25b"/>
+        <KPIs xsi:type="esdl:KPIs" id="1089cc12-58aa-4c0b-8512-5c17ad9bf573">
+          <kpi xsi:type="esdl:DoubleKPI" name="w_unserved" value="1000000000.0" id="e9bd7797-e3dc-48b2-a97a-38731190ca94"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="w_carbon" value="1.0" id="1ddd3fb6-3895-474d-a7a6-26be7e8c09e7"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="w_price" value="1.0" id="4f9978af-39d8-41e6-942a-3fc5795ad59e"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="w_effort" value="0.01" id="86e3904f-5120-484c-926f-13d5dab8feb8"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="w_soc_low" value="1000000.0" id="01765cdd-1c14-4b10-b512-6994b6555283"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="soc_baseline" value="50.0" id="34f0fb81-8863-4ef6-a1a1-7cbaa78a9875"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="cfe_constraint_mode" id="097e4a9b-c1e0-476e-b583-3008b0812edf"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="cfe_min_fraction" id="ee88af1e-0014-4b2f-acfe-76f4f7849de9"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="enable_battery" value="1.0" id="99ef7525-36e2-4f3a-b40b-da452d95f8a9"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="enable_backup_generator" value="1.0" id="e9227ccb-f1bb-495d-a2e7-f900ec1a1747"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="enable_renewable_service" value="1.0" id="5e36ce34-423d-4405-bf5f-b191147d1727"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="enable_change_management" value="1.0" id="0c0857d8-0919-4030-951b-537429ee44d0"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="enable_goal_management" value="1.0" id="197c8355-2dca-49b6-ad5c-2edec8a19359"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="enable_mandate" value="1.0" id="d26f87be-ab12-4745-9f68-8f444a40cb6e"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="enable_shared_transformer" value="1.0" id="baf5cdb2-c348-4791-b0d7-1441cb899bda"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="mpc_soc_drift_threshold" value="5.0" id="3a1448c7-e133-437f-b36b-b231347831f2"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="mpc_demand_spike_threshold" value="0.1" id="28312334-a906-4a62-b32b-881f88281bf8"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="mpc_horizon_steps" value="24.0" id="e1a31deb-f5ed-45f2-b19e-f52a2a508d32"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="mpc_replan_cooldown" value="4.0" id="febe6dbb-2c61-4b4b-a2db-6915ecf548a4"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="forecast_sigma_ci" value="0.12" id="218179fd-ed0e-4a0d-bbd2-b76e635cca74"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="forecast_sigma_p_dc" value="0.05" id="39566b3f-5040-4e19-a972-065ba3b8715b"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="forecast_sigma_price" value="0.15" id="d8e41a4a-fe37-4bfb-b630-9f60d60da948"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="forecast_seed" value="42.0" id="a2540a8d-2473-4d79-aa89-594eb4627f03"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="backup_co2_factor" value="600.0" id="68487946-f053-439f-9459-dc328aca192f"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="backup_cost_eur_per_kwh" value="0.4" id="798f9440-e520-4042-920e-372602d30d93"/>
+          <kpi xsi:type="esdl:DoubleKPI" name="sim_seed" value="42.0" id="a59387b4-0537-4e38-94db-3d394ac8615e"/>
         </KPIs>
       </asset>
-      <asset xsi:type="esdl:ElectricityDemand" powerFactor="0.95" id="59cf3128-4f09-40d5-a680-984ee5a04166" power="4000000.0" name="Datacenter Load">
-        <port xsi:type="esdl:InPort" name="dc_in" connectedTo="6b2a15f1-a780-4dc4-9fcf-0b7c60e55ea7" id="b8492d50-0ed4-4499-a59f-6b99bc2172d5">
-          <profile xsi:type="esdl:InfluxDBProfile" host="influxdb" filters="name='Datacenter Load'" measurement="historical_datacenter_demand" port="8086" field="Demand_W" database="GO-e" id="dfd4ab8d-9f47-4f7d-be6d-3f4cb4b4e69e"/>
+      <asset xsi:type="esdl:ElectricityDemand" powerFactor="0.95" name="Datacenter Load" power="4000000.0" id="923acc26-2ac1-4ed2-8851-e29f0e1510d8">
+        <port xsi:type="esdl:InPort" id="838118ab-2db5-4f4e-9579-078ac83a79ce" name="dc_in" connectedTo="7070a090-754a-42ce-b1a8-f2d1151c7e43">
+          <profile xsi:type="esdl:InfluxDBProfile" database="GO-e" host="influxdb" id="ce827582-03b5-4d69-b76c-cdcfacdeee3f" filters="name='Datacenter Load'" measurement="historical_datacenter_demand" port="8086" field="Demand_W"/>
         </port>
       </asset>
-      <asset xsi:type="esdl:Battery" chargeEfficiency="0.95" capacity="4000000.0" id="fa7eed46-7627-4e70-8628-576163f878d1" maxDischargeRate="4000000.0" maxChargeRate="4000000.0" dischargeEfficiency="0.95" name="Datacenter BESS">
-        <port xsi:type="esdl:InPort" name="bess_in" id="5c4ae837-a721-44d7-a264-302c23bd5456" connectedTo="643fac94-fad1-4403-932b-a02cdaa0cea2"/>
-        <port xsi:type="esdl:OutPort" name="bess_out" id="b59e3188-20cd-4922-949c-adeb2b97c9c8" connectedTo="7601b6ab-bf0a-413b-bf72-93e824919870"/>
+      <asset xsi:type="esdl:Battery" chargeEfficiency="0.95" capacity="4000000.0" name="Datacenter BESS" maxDischargeRate="4000000.0" maxChargeRate="4000000.0" id="5568e592-315c-4c38-93ec-e238f39ee069" dischargeEfficiency="0.95">
+        <port xsi:type="esdl:InPort" name="bess_in" id="a1086733-30f3-4f3d-9f6c-e0ab1044ef69" connectedTo="4f4bec2d-8ab1-4aeb-9b95-fcb9d078a9e8"/>
+        <port xsi:type="esdl:OutPort" name="bess_out" id="79456d8f-f6ce-44e8-8657-cc04c395ad3b" connectedTo="eb272b68-df61-467c-ab2a-2896a7cefd02"/>
       </asset>
-      <asset xsi:type="esdl:PowerPlant" power="10000000.0" id="ff1140f9-16a0-4aea-a45f-5202f4f19d2b" efficiency="1.0" name="Grid Connection" minLoad="-10000000">
-        <port xsi:type="esdl:InPort" name="grid_in" connectedTo="0fa083f0-d193-4d15-93d3-9408ebd296f4" id="bc918d72-2e12-488a-9c36-3548a9ce53a1">
-          <profile xsi:type="esdl:InfluxDBProfile" host="influxdb" filters="name='Grid Connection'" measurement="transformer_background" port="8086" field="background_w" database="GO-e" id="d7b56972-7d52-42d3-81de-60e385a2d5cb"/>
-          <profile xsi:type="esdl:InfluxDBProfile" host="influxdb" filters="name='Grid Connection'" measurement="carbon_intensity" port="8086" field="carbon_intensity" database="GO-e" id="06c3c925-b43f-4b19-b012-558b22b3e927"/>
-          <profile xsi:type="esdl:InfluxDBProfile" host="influxdb" filters="name='Grid Connection'" measurement="price-day-ahead" port="8086" field="price" database="GO-e" id="da7e880a-9f65-4f5c-b8d6-77ab10561484"/>
+      <asset xsi:type="esdl:PowerPlant" power="10000000.0" minLoad="-10000000" name="Grid Connection" efficiency="1.0" id="245e3314-8d34-492a-9e30-9e691bd5d984">
+        <port xsi:type="esdl:InPort" id="a402a4ec-3b63-47a0-b766-3aeb25d6900b" name="grid_in" connectedTo="d5e555aa-b1ac-4377-9803-063f9cf09316">
+          <profile xsi:type="esdl:InfluxDBProfile" database="GO-e" host="influxdb" id="c648e52b-0fcc-444b-a7c0-c3318b0d44a4" filters="name='Grid Connection'" measurement="transformer_background" port="8086" field="background_w"/>
+          <profile xsi:type="esdl:InfluxDBProfile" database="GO-e" host="influxdb" id="9473b6b4-8276-4ab8-98ed-edece81a6b69" filters="name='Grid Connection'" measurement="carbon_intensity" port="8086" field="carbon_intensity"/>
+          <profile xsi:type="esdl:InfluxDBProfile" database="GO-e" host="influxdb" id="6f215a0e-0a70-4281-ba95-b5a38878aae6" filters="name='Grid Connection'" measurement="carbon_intensity" port="8086" field="carbon_free_pct"/>
+          <profile xsi:type="esdl:InfluxDBProfile" database="GO-e" host="influxdb" id="56ad61a0-14df-4074-98ab-bbb361dbd24f" filters="name='Grid Connection'" measurement="price-day-ahead" port="8086" field="price"/>
         </port>
-        <port xsi:type="esdl:OutPort" name="grid_out" id="b87f2512-d237-4778-8df0-31602d418453" connectedTo="7ea6aa3f-fbc7-4628-a3f5-aaa1c88a0934"/>
+        <port xsi:type="esdl:OutPort" name="grid_out" id="a21daa45-63a2-426e-b01f-da7e4a978bc0" connectedTo="bb9bafb3-9d09-4914-af50-48c73ee01a4e"/>
       </asset>
-      <asset xsi:type="esdl:GasProducer" id="df16647e-c554-4bb5-ac66-0de81a547471" power="5000000.0" name="Backup Generator">
-        <port xsi:type="esdl:OutPort" name="gen_out" id="315c6dd3-365d-492d-9d81-e95ccb326750" connectedTo="18e2bea9-fec8-4476-9a42-e41ebeebb076"/>
+      <asset xsi:type="esdl:GasProducer" name="Backup Generator" power="5000000.0" id="437e6f20-beed-4f9b-978d-11f7c150e2ed">
+        <port xsi:type="esdl:OutPort" name="gen_out" id="6f7dfd83-48ef-4eed-977f-f964a8e577ee" connectedTo="b696eef7-43ba-46c4-bfd3-a455e921a39f"/>
       </asset>
-      <asset xsi:type="esdl:PVInstallation" angle="35" panelEfficiency="0.2" id="cda0da95-a1d6-4b85-a7b7-6a862810c07e" power="1000000.0" orientation="180" inverterEfficiency="0.98" surfaceArea="5000" name="Local Renewable Energy Source">
-        <port xsi:type="esdl:OutPort" connectedTo="c72f5ccf-11db-49f8-8d50-d40783d60fd5" name="res_out" id="5d3976e4-8dba-4199-9cc1-e32032314726">
-          <profile xsi:type="esdl:InfluxDBProfile" host="influxdb" filters="name='Local RES'" measurement="historical_solar_irradiance" port="8086" field="Irradiance_W_m2" database="GO-e" id="9c83f280-b07e-440d-9eac-7c2a797c7305"/>
+      <asset xsi:type="esdl:PVInstallation" angle="35" name="Local Renewable Energy Source" panelEfficiency="0.2" power="1000000.0" orientation="180" id="cf49f900-4cc7-4925-b97a-eef3afa6a7f5" surfaceArea="5000" inverterEfficiency="0.98">
+        <port xsi:type="esdl:OutPort" connectedTo="b38ae08a-5a1f-48b0-9ed6-399ca50f0eba" id="0109c6a3-9162-4996-99cf-4276c7d9c25b" name="res_out">
+          <profile xsi:type="esdl:InfluxDBProfile" database="GO-e" host="influxdb" id="d523de4f-c83b-4808-a9ad-99b87dde0345" filters="name='Local RES'" measurement="historical_solar_irradiance" port="8086" field="Irradiance_W_m2"/>
         </port>
       </asset>
     </area>

@@ -26,12 +26,21 @@ lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="w_price", 
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="w_effort", value=0.01))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="w_soc_low", value=1e6))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="soc_baseline", value=50.0))
+# Carbon-free-energy (CFE) grid-draw constraint for the day-ahead LP.
+#   cfe_constraint_mode: 0=off, 1=blended (horizon-mean grid CFE >= threshold),
+#                        2=block (no grid draw on steps below threshold)
+#   cfe_min_fraction:    threshold in [0,1] (e.g. 1.0 = 100% carbon-free grid only)
+lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="cfe_constraint_mode", value=0.0))
+lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="cfe_min_fraction",    value=0.0))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="enable_battery", value=1.0))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="enable_backup_generator", value=1.0))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="enable_renewable_service", value=1.0))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="enable_change_management", value=1.0))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="enable_goal_management", value=1.0))
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="enable_mandate", value=1.0))
+# Grid connection model: 1.0 = shared transformer (DC headroom = capacity − background),
+# 0.0 = dedicated feeder (DC sees full nameplate capacity, no background, no surplus mandate).
+lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="enable_shared_transformer", value=1.0))
 
 # Change Management (MPC) deviation thresholds — promoted from hard-coded constants to ESDL KPIs
 # so each experimental run can sweep them independently for the RQ4 sensitivity study.
@@ -60,7 +69,7 @@ lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="backup_cos
 # fallbacks. Read by the demand and grid federates; vary it for multi-seed runs.
 lv_network.KPIs.kpi.append(esdl.DoubleKPI(id=str(uuid.uuid4()), name="sim_seed", value=42.0))  # [int] noise seed
 
-# SERVICE 1: DatacenterDemandService - Realistic 4MW load
+# SERVICE 1: DatacenterDemandService - ~1 MW average load (4 MW nameplate ceiling)
 # power is typically EDouble but minLoad is EInt in some ESDL versions
 datacenter = esdl.ElectricityDemand(id=str(uuid.uuid4()), name="Datacenter Load", power=4000000.0)
 datacenter.powerFactor = 0.95            
@@ -71,6 +80,7 @@ bess.chargeEfficiency = 0.95
 bess.dischargeEfficiency = 0.95
 bess.maxChargeRate = 4000000.0
 bess.maxDischargeRate = 4000000.0
+bess.fillLevel = 0.0
 
 # SERVICE 3: PowerPlantService - Realistic 5MW Grid connection
 grid_connection = esdl.PowerPlant(id=str(uuid.uuid4()), name="Grid Connection", power=10000000.0)
@@ -139,12 +149,20 @@ grid_carbon_profile = esdl.InfluxDBProfile(
     measurement="carbon_intensity", field="carbon_intensity",
     filters="name='Grid Connection'", multiplier=1.0,
 )
+# Carbon-free energy share [%] of the grid mix (Electricity Maps). Lives on the
+# same measurement/timestamps as carbon_intensity; parsed alongside it by the
+# PowerPlant federate and published as a real-time + day-ahead signal.
+grid_cfe_profile = esdl.InfluxDBProfile(
+    id=str(uuid.uuid4()), host="influxdb", port=8086, database="GO-e",
+    measurement="carbon_intensity", field="carbon_free_pct",
+    filters="name='Grid Connection'", multiplier=1.0,
+)
 grid_price_profile = esdl.InfluxDBProfile(
     id=str(uuid.uuid4()), host="influxdb", port=8086, database="GO-e",
     measurement="price-day-ahead", field="price",
     filters="name='Grid Connection'", multiplier=1.0,
 )
-grid_in.profile.extend([grid_bg_profile, grid_carbon_profile, grid_price_profile])
+grid_in.profile.extend([grid_bg_profile, grid_carbon_profile, grid_cfe_profile, grid_price_profile])
 grid_out = esdl.OutPort(id=str(uuid.uuid4()), name="grid_out")
 grid_connection.port.extend([grid_in, grid_out])
 
