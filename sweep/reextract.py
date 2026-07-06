@@ -39,14 +39,23 @@ _REGEN = set(lr.METRIC_FIELDS) | {
 }
 
 
+DIESEL_CI_G_PER_KWH  = 600.0   # Scope-1 diesel backup emission factor [gCO2/kWh]
+DIESEL_FUEL_EUR_KWH  = 0.40    # diesel fuel cost [EUR/kWh] (matches backup-generator service)
+
+
 def query_baselines(client: InfluxDBClient, sim_id: str) -> dict[str, float]:
     """Recompute both counterfactual baselines from the per-step series.
 
     EQUAL-SERVICE: serves exactly the load the EMS served
     (``served_datacenter_power_w``) from PV then grid at the spot CI/price, no
-    battery. PASSIVE: same PV and grid limit but no battery, so it serves net
-    load (demand - PV) up to the per-step grid limit and sheds the rest. The grid
+    battery.  When the grid limit is binding, the excess is covered by the
+    backup generator at 600 gCO2/kWh (Scope 1) and 0.40 EUR/kWh fuel cost,
+    mirroring the same accounting applied to the EMS runs.
+
+    PASSIVE: same PV and grid limit but no battery, so it serves net load
+    (demand - PV) up to the per-step grid limit and sheds the rest.  The grid
     limit is read from the PowerPlant measurement and aligned by timestamp.
+
     Returns the six cumulative baseline metrics.
     """
     en = client.query(
@@ -76,14 +85,20 @@ def query_baselines(client: InfluxDBClient, sim_id: str) -> dict[str, float]:
         demand_kw = demand / 1000.0
 
         # Equal-service: serve the EMS-served load, naive timing, no battery.
-        es_grid = max(0.0, served_kw - pv_kw)
-        es_carbon += ci * es_grid * DT_HOURS
-        es_cost   += price * es_grid * DT_HOURS / 1000.0
+        # PV first, then grid up to the grid limit, then backup for the rest.
+        lim_w = limit_by_time.get(p["time"])
+        lim_kw = (lim_w / 1000.0) if lim_w is not None else float("inf")
+
+        es_need   = max(0.0, served_kw - pv_kw)          # load after PV
+        es_grid   = min(es_need, lim_kw)                  # grid supplies up to limit
+        es_backup = max(0.0, es_need - lim_kw)            # diesel covers the rest
+        es_carbon += ci * es_grid * DT_HOURS              # Scope 2
+        es_carbon += DIESEL_CI_G_PER_KWH * es_backup * DT_HOURS   # Scope 1
+        es_cost   += price * es_grid * DT_HOURS / 1000.0  # grid cost
+        es_cost   += DIESEL_FUEL_EUR_KWH * es_backup * DT_HOURS   # diesel cost
         es_uns    += max(0.0, demand_kw - served_kw) * DT_HOURS
 
         # Passive: serve net load up to the grid limit, shed the rest, no battery.
-        lim_w = limit_by_time.get(p["time"])
-        lim_kw = (lim_w / 1000.0) if lim_w is not None else float("inf")
         net_kw = max(0.0, demand_kw - pv_kw)
         pa_grid = min(net_kw, lim_kw)
         pa_carbon += ci * pa_grid * DT_HOURS

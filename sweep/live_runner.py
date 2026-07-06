@@ -32,7 +32,7 @@ from sweep_plans import ALL_AXES       # noqa: E402
 ORCH_URL  = "http://localhost:8011/api/v1/simulation/start"
 STATUS_URL_FMT = "http://localhost:8011/api/v1/simulation/{sid}"
 INFLUX_HOST = "localhost"
-INFLUX_PORT = 8096                       # confirmed via clean_influxdb.py + running cluster
+INFLUX_PORT = 8096                       
 INFLUX_DB   = "GO-e"
 INFLUX_USER = "admin"
 INFLUX_PASS = "admin"

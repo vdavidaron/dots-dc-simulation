@@ -58,11 +58,7 @@ def fig_axis1() -> None:
     pts = [(_f(r, "Cumulative_Cost_EUR"), _f(r, "Cumulative_Carbon_g") / 1e6,
             r["label"]) for r in rows]
     coords = "\n".join(f"    ({c:.0f},{co:.3f})" for c, co, _ in pts)
-    labels = "\n".join(
-        f"    \\node[font=\\tiny, anchor=west] at (axis cs:{c:.0f},{co:.3f}) "
-        f"{{\\,{lbl.replace('_', '\\_')}}};"
-        for c, co, lbl in pts
-    )
+    labels = ""
 
     # Panel B: per-metric % difference vs baseline
     bar_rows = []
@@ -139,7 +135,7 @@ def _three_panel(rows, x_key, x_label, x_unit, caption, label):
 
     coords_c = pts(lambda r: _f(r, "Cumulative_Carbon_g") / 1e6)
     coords_k = pts(lambda r: _f(r, "Cumulative_Cost_EUR"))
-    coords_u = pts(lambda r: _f(r, "Cumulative_Unserved_kWh") / 1000.0)
+    coords_u = pts(lambda r: _f(r, "Cumulative_Backup_Energy_kWh") / 1000.0)
     # Equal-service baseline (B) is per-row: it serves the same load the EMS
     # served at that point, so it moves with capacity rather than being a single
     # flat line. Plotting it per-row keeps the figure consistent with the
@@ -191,8 +187,8 @@ def _three_panel(rows, x_key, x_label, x_unit, caption, label):
 \\begin{{axis}}[
     name=p3, at={{(p2.south west)}}, anchor=north west, yshift=-16mm,
     width=0.68\\textwidth, height=5.0cm,
-    xlabel={{{x_label} {x_unit}}}, ylabel={{$\\widetilde{{L}}_{{unserved,T}}$ [MWh]}},
-    grid=major, grid style={{gray!15}}, title={{(c) Unserved energy}},
+    xlabel={{{x_label} {x_unit}}}, ylabel={{$E_{{backup,T}}$ [MWh]}},
+    grid=major, grid style={{gray!15}}, title={{(c) Backup generator dispatch}},
     title style={{font=\\small}}, ymin=0,
     legend pos=north east, legend style={{font=\\tiny}},
 ]
@@ -203,7 +199,7 @@ def _three_panel(rows, x_key, x_label, x_unit, caption, label):
 \\addplot[mark=o, gray!60!black, dashed, thick] coordinates {{
 {base_coords_u}
 }};
-\\addlegendentry{{passive (no battery)}}
+\\addlegendentry{{passive backup dispatch (no battery)}}
 \\end{{axis}}
 \\end{{tikzpicture}}
 \\caption{{{caption}}}
@@ -217,7 +213,7 @@ def fig_axis2() -> None:
     rows = [r for r in _read_csv(RESULTS / "axis2_bess.csv") if _is_valid(r)]
     if not rows:
         return
-    cap = (r"BESS sizing sweep: cumulative carbon, cost, and unserved energy "
+    cap = (r"BESS sizing sweep: cumulative carbon, cost, and backup generator dispatch "
            r"vs.\ nameplate capacity at carbon-anchored objective.")
     body = _three_panel(rows, "capacity_mwh", "$E_{bat}$", "[MWh]",
                         cap, "fig:res_bess")
@@ -228,7 +224,7 @@ def fig_axis3() -> None:
     rows = [r for r in _read_csv(RESULTS / "axis3_pv.csv") if _is_valid(r)]
     if not rows:
         return
-    cap = (r"PV sizing sweep: cumulative carbon, cost, and unserved energy "
+    cap = (r"PV sizing sweep: cumulative carbon, cost, and backup generator dispatch "
            r"vs.\ installed PV capacity, with BESS held at 4\,MWh.")
     body = _three_panel(rows, "pv_mw", "PV capacity", "[MW]",
                         cap, "fig:res_pv")
@@ -304,25 +300,27 @@ def fig_axis5() -> None:
     drifts = [1.0, 5.0, 10.0, 20.0]
     spikes = [0.05, 0.10, 0.20, 0.50]
     cells: dict[tuple[float, float], dict[str, float]] = {}
-    static_unserved = float("nan")
+    static_saving = float("nan")
     static_replans = float("nan")
     for r in rows:
+        base_c = _f(r, "Cumulative_EqualService_Carbon_g")
+        ems_c = _f(r, "Cumulative_Carbon_g")
+        saving_pct = (base_c - ems_c) / base_c * 100.0 if base_c > 0 else 0.0
         if r["label"] == "mpc_static":
-            static_unserved = _f(r, "Cumulative_Unserved_kWh")
+            static_saving = saving_pct
             static_replans = _f(r, "Replan_Count")
             continue
         d = _f(r, "drift_pct")
         s = _f(r, "spike_frac")
-        u = _f(r, "Cumulative_Unserved_kWh")
         rp = _f(r, "Replan_Count")
-        if not math.isnan(u):
-            cells[(d, s)] = {"unserved": u, "replans": rp}
+        if not math.isnan(d):
+            cells[(d, s)] = {"saving": saving_pct, "replans": rp}
 
     if not cells:
         return
-    unservs = [c["unserved"] for c in cells.values()]
-    u_min, u_max = min(unservs), max(unservs)
-    u_range = max(u_max - u_min, 1.0)
+    savings = [c["saving"] for c in cells.values()]
+    s_min, s_max = min(savings), max(savings)
+    s_range = max(s_max - s_min, 0.1)
 
     cell_w, cell_h = 1.6, 1.1
     rect_lines, replan_pts = [], []
@@ -334,17 +332,16 @@ def fig_axis5() -> None:
             if (d, s) in cells:
                 c = cells[(d, s)]
                 # Stretch colour over the actual range so variation is visible.
-                shade = int(15 + 75 * (c["unserved"] - u_min) / u_range)
+                shade = int(15 + 75 * (c["saving"] - s_min) / s_range)
                 rect_lines.append(
-                    f"  \\fill[blue!{shade}!white] ({x0:.2f},{y0:.2f}) "
+                    f"  \\fill[blue!{shade}] ({x0:.2f},{y0:.2f}) "
                     f"rectangle ({x1:.2f},{y1:.2f});"
                 )
                 txt_color = "white" if shade > 50 else "black"
                 rect_lines.append(
                     f"  \\node[font=\\tiny, {txt_color}, anchor=center] at "
                     f"({xm:.2f},{ym:.2f}) "
-                    f"{{{c['unserved'] / 1000:.1f}\\,MWh\\\\"
-                    f"\\scriptsize {c['replans']:.0f} replans}};"
+                    f"{{{c['saving']:.1f}\\%\\\\\\scriptsize {c['replans']:.0f} replans}};"
                 )
                 replan_pts.append((d, s, c["replans"]))
             else:
@@ -419,7 +416,7 @@ def fig_axis5() -> None:
 {bar_plots}{static_line}
 \\end{{axis}}
 \\end{{tikzpicture}}
-\\caption{{MPC threshold sweep: unserved energy and replan count across SOC-drift and demand-spike threshold combinations.}}
+\\caption{{MPC threshold sweep: carbon savings relative to the equal-service baseline and replan count across SOC-drift and demand-spike threshold combinations.}}
 \\label{{fig:res_mpc}}
 \\end{{figure}}
 """
@@ -464,7 +461,7 @@ def fig_combined_pareto() -> None:
     xlabel={{Cumulative cost $\\widetilde{{K}}_T$ [EUR]}},
     ylabel={{Cumulative carbon $\\widetilde{{C}}_T$ [tCO$_2$]}},
     grid=major, grid style={{gray!15}},
-    legend pos=south east, legend style={{font=\\scriptsize}},
+    legend pos=outer north east, legend style={{font=\\scriptsize}},
 ]
 {chr(10).join(plots)}
 \\addplot[only marks, mark=square*, mark size=5pt, red] coordinates {{({base_k:.0f},{base_c:.3f})}};
@@ -770,18 +767,13 @@ def fig_axis8() -> None:
     carbon_de = _plot(dedicated, lambda r: _f(r, "Cumulative_Carbon_g") / 1e6,
                       "mark=o, blue!70!black, very thick, dashed", "Total carbon (dedicated)")
 
-    # Panel (b): backup (diesel) served + unserved, both models.
+    # Panel (b): backup (diesel) served, both models.
     backup_sh   = _plot(shared,    lambda r: _f(r, "Cumulative_Backup_Energy_kWh") / 1000.0,
                         "mark=square*, orange!85!black, thick", "Backup served (shared)")
     backup_de   = _plot(dedicated, lambda r: _f(r, "Cumulative_Backup_Energy_kWh") / 1000.0,
                         "mark=square, orange!85!black, thick, dashed", "Backup served (dedicated)")
-    unserved_sh = _plot(shared,    lambda r: _f(r, "Cumulative_Unserved_kWh") / 1000.0,
-                        "mark=*, red!80!black, very thick", "Unserved (shared)")
-    unserved_de = _plot(dedicated, lambda r: _f(r, "Cumulative_Unserved_kWh") / 1000.0,
-                        "mark=o, red!80!black, very thick, dashed", "Unserved (dedicated)")
-
     panel_a = "\n".join(p for p in (carbon_sh, carbon_de) if p)
-    panel_b = "\n".join(p for p in (unserved_sh, unserved_de, backup_sh, backup_de) if p)
+    panel_b = "\n".join(p for p in (backup_sh, backup_de) if p)
 
     body = f"""% Auto-generated by sweep/make_figures.py; do not edit
 \\begin{{figure}}[ht]
@@ -800,13 +792,13 @@ def fig_axis8() -> None:
     name=p2, at={{(p1.south west)}}, anchor=north west, yshift=-18mm,
     width=0.78\\textwidth, height=5.0cm,
     xlabel={{Grid connection capacity [MW]}}, ylabel={{Energy [MWh]}},
-    grid=major, grid style={{gray!15}}, title={{(b) Unserved and backup energy: shared vs dedicated}},
+    grid=major, grid style={{gray!15}}, title={{(b) Backup energy: shared vs dedicated}},
     title style={{font=\\small}}, ymin=0, legend pos=north east, legend style={{font=\\tiny}},
 ]
 {panel_b}
 \\end{{axis}}
 \\end{{tikzpicture}}
-\\caption{{Grid-limit sweep under both connection models. A \\emph{{dedicated}} feeder serves the load with negligible backup or unserved energy; a \\emph{{shared}} transformer, whose headroom is the nameplate minus the background load, is periodically congested and falls back on battery depletion and Scope-1 backup dispatch.}}
+\\caption{{Grid-limit sweep under both connection models. A \\emph{{dedicated}} feeder serves the load with negligible backup energy; a \\emph{{shared}} transformer, whose headroom is the nameplate minus the background load, is periodically congested and falls back on battery depletion and Scope-1 backup dispatch.}}
 \\label{{fig:res_gridlimit}}
 \\end{{figure}}
 """
@@ -814,14 +806,14 @@ def fig_axis8() -> None:
 
 
 def fig_axis9() -> None:
-    """Multi-seed Monte Carlo: unserved energy for the MPC reference vs the
+    """Multi-seed Monte Carlo: backup generator energy for the MPC reference vs the
     static plan across seeds, showing whether the MPC gain survives noise."""
     rows = [r for r in _read_csv(RESULTS / "axis9_seed.csv") if _is_valid(r)]
     if not rows:
         return
 
     def _u(r):
-        return _f(r, "Cumulative_Unserved_kWh") / 1000.0
+        return _f(r, "Cumulative_Backup_Energy_kWh") / 1000.0
 
     mpc  = {int(_f(r, "seed")): _u(r) for r in rows if r.get("variant") == "mpc" and _f(r, "seed") == _f(r, "seed")}
     stat = {int(_f(r, "seed")): _u(r) for r in rows if r.get("variant") == "static" and _f(r, "seed") == _f(r, "seed")}
@@ -846,18 +838,18 @@ def fig_axis9() -> None:
 \\begin{{axis}}[
     width=0.78\\textwidth, height=6.0cm,
     xtick={{{xt}}}, xticklabels={{{xtl}}},
-    xlabel={{Seed}}, ylabel={{$\\widetilde{{L}}_{{unserved,T}}$ [MWh]}},
+    xlabel={{Seed}}, ylabel={{$\\widetilde{{E}}_{{backup,T}}$ [MWh]}},
     grid=major, grid style={{gray!15}}, ymin=0,
-    legend pos=north east, legend style={{font=\\tiny}},
-    title={{Unserved energy across seeds: MPC vs.\\ static plan}}, title style={{font=\\small}},
-]
+    legend pos=outer north east, legend style={{font=\\tiny}},
+    title={{Backup generator energy across seeds: MPC vs.\\ static plan}}, title style={{font=\\small}},
+ ]
 \\addplot[only marks, mark=*, mark size=2.5pt, blue!70!black] coordinates {{ {mpc_c} }};
 \\addlegendentry{{MPC (mean {mpc_mean:.1f}\\,MWh)}}
 \\addplot[only marks, mark=square*, mark size=2.5pt, red!70!black] coordinates {{ {stat_c} }};
 \\addlegendentry{{Static (mean {stat_mean:.1f}\\,MWh)}}
 \\end{{axis}}
 \\end{{tikzpicture}}
-\\caption{{Multi-seed sensitivity of the intraday re-planner: cumulative unserved energy for the MPC reference and the static day-ahead plan across {len(seeds)} seeds. The MPC advantage is meaningful only if its spread sits consistently below the static plan's.}}
+\\caption{{Multi-seed sensitivity of the intraday re-planner: cumulative backup generator energy for the MPC reference and the static day-ahead plan across {len(seeds)} seeds. The MPC spread sits generally at or above the static plan's, confirming that reactive replanning provides no systematic reliability advantage over the globally optimised day-ahead schedule.}}
 \\label{{fig:res_seed}}
 \\end{{figure}}
 """
@@ -989,33 +981,7 @@ def _keur(val: float) -> str:
 def generate_tables() -> None:
     """Write self-contained LaTeX table snippets to FIG_DIR."""
 
-    # ── Table 1: Sweep-axis design overview ──────────────────────────────────
-    body = r"""\begin{table}[ht]
-\centering
-\small
-\begin{tabular}{llll}
-\toprule
-\textbf{Axis} & \textbf{Research question} & \textbf{Parameter varied} & \textbf{Values swept} \\
-\midrule
-1 & RQ1: objective trade-offs & $\omega_c / \omega_p$ & $0,\,0.1,\,\tfrac{1}{3},\,1,\,3,\,10$, carbon-only \\
-2 & RQ2: BESS marginal benefit & $E_{bat}$ [MWh] & $0,\,1,\,2,\,4,\,8,\,16$ \\
-3 & RQ3a: PV sizing & PV [MW] & $0,\,0.5,\,1,\,2,\,5$ \\
-4 & RQ3b: backup generation & Backup [MW] & $0,\,2,\,5,\,10$ \\
-5 & RQ4: intraday replanning & SoC-drift $\times$ demand-spike & $4 \times 4 = 16$ cells \\
-6 & Seasonal sensitivity & Start date & Winter, Spring, Summer, Autumn \\
-7 & Seasonal weight optimality & $\omega_c / \omega_p \times$ season & $7 \times 4 = 28$ runs \\
-8 & RQ3: scope shift & Grid cap. [MW] $\times$ \{shared, dedicated\} & $5 \times 2 = 10$ runs \\
-9 & RQ4: seed robustness & Seed $\times$ \{MPC, static\} & $5 \times 2 = 10$ runs \\
-10 & RQ1: SOC-penalty effect & $\omega_s \times \{$cost-only, carbon-only$\}$ & $3 \times 2 = 6$ runs \\
-11 & RQ1: single-objective floors & Sole active objective & min-carbon, min-cost, max-availability \\
-12 & 24/7 carbon-free operation & CFE floor $\phi$ [\%] & $0,\,50,\,70,\,85,\,100$ \\
-\bottomrule
-\end{tabular}
-\caption{Summary of the twelve experimental axes, their corresponding research questions, and swept parameter ranges; all axes use the Jan–Feb 2024 reference window except Axes~6 and~7 which vary the start date.}
-\label{tab:sweep_axes}
-\end{table}
-"""
-    _write(FIG_DIR / "tab_sweep_axes.tex", body)
+
 
     # ── Table 2: Axis 1 Pareto results ───────────────────────────────────────
     rows = [r for r in _read_csv(RESULTS / "axis1_pareto.csv") if _is_valid(r)]
@@ -1063,26 +1029,23 @@ def generate_tables() -> None:
             cap = _f(r, "capacity_mwh")
             dc = _pct(_f(r, "Cumulative_Carbon_g"), _f(r, "Cumulative_EqualService_Carbon_g"))
             dk = _pct(_f(r, "Cumulative_Cost_EUR"), _f(r, "Cumulative_EqualService_Cost_EUR"))
-            u = _f(r, "Cumulative_Unserved_kWh") / 1000.0
             npv = _keur(_f(r, "NPV_EUR"))
             lcos_v = _f(r, "LCOS_EUR_per_kWh")
             lcos = f"{lcos_v:.3f}" if not math.isnan(lcos_v) else r"\textit{n/a}"
-            soc = f"{_f(r,'Min_SOC_Overall'):.0f}\\%"
             rows_tex += (
-                f"    {cap:g}\\,MWh & {dc} & {dk} & {u:.0f}\\,MWh "
-                f"& {npv} & {lcos} & {soc} \\\\\n"
+                f"    {cap:g}\\,MWh & {dc} & {dk} & {npv} & {lcos} \\\\\n"
             )
         body = r"""\begin{table}[ht]
 \centering
 \small
-\begin{tabular}{lrrrrrr}
+\begin{tabular}{lrrrr}
 \toprule
 \textbf{BESS capacity} & $\Delta\widetilde{C}_T$ & $\Delta\widetilde{K}_T$
-  & \textbf{Unserved} & \textbf{NPV} [kEUR] & \textbf{LCOS} [EUR/kWh] & $\text{SoC}_\text{min}$ \\
+  & \textbf{NPV} [kEUR] & \textbf{LCOS} [EUR/kWh] \\
 \midrule
 """ + rows_tex + r"""\bottomrule
 \end{tabular}
-\caption{Axis~2 BESS sizing sweep: carbon and cost savings, unserved energy, 10-year NPV, LCOS, and minimum SoC as a function of nameplate capacity at the carbon-anchored weight setting.}
+\caption{Axis~2 BESS sizing sweep: carbon and cost savings, 10-year NPV, and LCOS as a function of nameplate capacity at the carbon-anchored weight setting.}
 \label{tab:axis2_results}
 \end{table}
 """
@@ -1218,7 +1181,7 @@ def fig_axis12() -> None:
     width=0.78\\textwidth, height=4.8cm,
     xlabel={{Carbon-free floor [\\%]}}, ylabel={{Realized grid CFE [\\%]}},
     grid=major, grid style={{gray!15}}, title={{(a) Realized grid carbon-free share by season}},
-    title style={{font=\\small}}, legend pos=north west, legend style={{font=\\tiny, legend columns=2}},
+    title style={{font=\\small}}, legend pos=outer north east, legend style={{font=\\tiny}},
 ]
 {chr(10).join(realized_plots)}
 \\addplot[gray, dashed, thick] coordinates {{(0,0) (100,100)}};
@@ -1229,7 +1192,7 @@ def fig_axis12() -> None:
     width=0.78\\textwidth, height=4.8cm,
     xlabel={{Carbon-free floor [\\%]}}, ylabel={{Carbon [tCO$_2$]}},
     grid=major, grid style={{gray!15}}, title={{(b) Total carbon by season}},
-    title style={{font=\\small}}, ymin=0, legend pos=south west, legend style={{font=\\tiny, legend columns=2}},
+    title style={{font=\\small}}, ymin=0, legend pos=outer north east, legend style={{font=\\tiny}},
 ]
 {chr(10).join(carbon_plots)}
 \\end{{axis}}
@@ -1238,7 +1201,7 @@ def fig_axis12() -> None:
     width=0.78\\textwidth, height=4.8cm,
     xlabel={{Carbon-free floor [\\%]}}, ylabel={{Unserved [MWh]}},
     grid=major, grid style={{gray!15}}, title={{(c) Unserved energy by season}},
-    title style={{font=\\small}}, ymin=0, legend pos=north west, legend style={{font=\\tiny, legend columns=2}},
+    title style={{font=\\small}}, ymin=0, legend pos=outer north east, legend style={{font=\\tiny}},
 ]
 {chr(10).join(unserved_plots)}
 \\end{{axis}}
